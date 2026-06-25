@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, properties, developments, tenants } from "@/db/schema";
+import { leads, properties, tenants } from "@/db/schema";
 import { eq, and, gte, or } from "drizzle-orm";
 
 // Verificação do webhook Meta (GET) — por token de tenant
@@ -14,7 +14,6 @@ export async function GET(request: Request) {
     return new Response("Bad Request", { status: 400 });
   }
 
-  // Aceita tanto o token global (PlaceGo) quanto tokens de tenant
   const isGlobal = token === process.env.META_WEBHOOK_VERIFY_TOKEN;
   if (!isGlobal) {
     const [tenant] = await db
@@ -36,9 +35,10 @@ export async function POST(request: Request) {
 
     // Resolver tenant pelo token da URL
     let tenantId: string | null = null;
+    let tenantName: string | null = null;
     if (incomingToken) {
       const [tenant] = await db
-        .select({ id: tenants.id })
+        .select({ id: tenants.id, name: tenants.name })
         .from(tenants)
         .where(eq(tenants.webhookToken, incomingToken))
         .limit(1);
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Invalid token" }, { status: 401 });
       }
       tenantId = tenant.id;
+      tenantName = tenant.name;
     }
 
     const body = await request.json();
@@ -62,20 +63,22 @@ export async function POST(request: Request) {
         const get = (key: string) =>
           fieldData.find((f) => f.name === key)?.values?.[0] ?? null;
 
-        const name =
-          get("full_name") ?? get("nome") ?? value.name ?? "Sem nome";
-        const phone =
-          get("phone_number") ?? get("telefone") ?? get("whatsapp") ?? value.phone ?? "";
+        const name = get("full_name") ?? get("nome") ?? value.name ?? "Sem nome";
+        const phone = get("phone_number") ?? get("telefone") ?? get("whatsapp") ?? value.phone ?? "";
         const email = get("email") ?? value.email ?? null;
-        const campaignId =
-          value.campaign_id?.toString() ?? value.ad_id?.toString() ?? null;
+
+        // Dados de campanha Meta
+        const campaignId = value.campaign_id?.toString() ?? null;
+        const adId = value.ad_id?.toString() ?? null;
+        const adName = value.ad_name ?? null;
+        const adsetName = value.adset_name ?? null;
+        const formName = value.form_name ?? null;
 
         if (!phone) continue;
 
         // Deduplicação: mesmo telefone/email nos últimos 30 dias
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const conditions = [];
-        if (phone) conditions.push(eq(leads.phone, phone));
+        const conditions = [eq(leads.phone, phone)];
         if (email) conditions.push(eq(leads.email, email));
 
         const [duplicate] = await db
@@ -84,42 +87,45 @@ export async function POST(request: Request) {
           .where(and(or(...conditions), gte(leads.createdAt, thirtyDaysAgo)))
           .limit(1);
 
-        // Score de qualidade
+        // Score de qualidade (0–100)
         let score = 0;
         if (name && name !== "Sem nome") score += 20;
         if (phone) score += 30;
         if (email) score += 20;
         if (campaignId) score += 15;
-        if (value.utm_source) score += 15;
+        if (value.utm_source || adName) score += 15;
 
-        // Resolver imóvel de origem pelo external_id
+        // Resolver imóvel de origem
         let sourcePropertyId: string | null = null;
-        let sourceDevelopmentId: string | null = null;
-
         if (value.property_id) {
           const [prop] = await db
-            .select({ id: properties.id })
+            .select({ id: properties.id, tenantId: properties.tenantId })
             .from(properties)
             .where(eq(properties.externalId, value.property_id))
             .limit(1);
-          if (prop) sourcePropertyId = prop.id;
+          if (prop) {
+            sourcePropertyId = prop.id;
+            // Se não veio token na URL, tenta inferir tenant pelo imóvel
+            if (!tenantId) tenantId = prop.tenantId;
+          }
         }
 
         await db.insert(leads).values({
           name,
           phone,
           email,
+          tenantId,
           sourcePropertyId,
-          sourceDevelopmentId,
           origin: "meta_ads",
-          campaignId,
+          campaignId: campaignId ?? adId,
+          adName,
+          adsetName,
+          formName,
           utmSource: value.utm_source ?? null,
           utmMedium: value.utm_medium ?? null,
           utmCampaign: value.utm_campaign ?? null,
           status: duplicate ? "duplicate" : "new",
           qualityScore: score,
-          // tenantId não está no schema de leads ainda — guardamos via imóvel de origem
-          // ou podemos adicionar no futuro; por ora o SDR vê todos e filtra por imóvel
         });
       }
     }

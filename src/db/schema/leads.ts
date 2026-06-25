@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { properties, developments } from "./properties";
+import { tenants } from "./tenants";
 
 export const leadStatusEnum = pgEnum("lead_status", [
   "new",
@@ -50,8 +51,12 @@ export const leads = pgTable("leads", {
   sourceDevelopmentId: uuid("source_development_id").references(
     () => developments.id
   ),
+  tenantId: uuid("tenant_id").references(() => tenants.id),
   origin: leadOriginEnum("origin").notNull().default("meta_ads"),
   campaignId: text("campaign_id"),
+  adName: text("ad_name"),
+  adsetName: text("adset_name"),
+  formName: text("form_name"),
   utmSource: text("utm_source"),
   utmMedium: text("utm_medium"),
   utmCampaign: text("utm_campaign"),
