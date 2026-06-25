@@ -1,0 +1,14 @@
+"use server";
+
+import { requireRole } from "@/lib/auth";
+import { createInstance, deleteInstance } from "@/lib/evolution";
+
+export async function createEvolutionInstance(instanceName: string) {
+  await requireRole(["admin_placego"]);
+  return createInstance(instanceName);
+}
+
+export async function deleteEvolutionInstance(instanceName: string) {
+  await requireRole(["admin_placego"]);
+  return deleteInstance(instanceName);
+}

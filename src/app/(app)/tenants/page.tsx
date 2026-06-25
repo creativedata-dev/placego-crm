@@ -75,6 +75,9 @@ export default async function TenantsPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2 justify-end">
+                    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/tenants/${t.id}/whatsapp`} />}>
+                      WhatsApp
+                    </Button>
                     <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/tenants/${t.id}/webhook`} />}>
                       Webhook
                     </Button>
