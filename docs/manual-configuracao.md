@@ -1,6 +1,6 @@
 # PlaceGo CRM — Manual de Configuração
 
-**Versão:** 1.0 — Junho 2026  
+**Versão:** 2.0 — Junho 2026  
 **Produto:** crm.placego.com.br  
 **Equipe:** PlaceGo / JCE Comunicação
 
@@ -9,106 +9,95 @@
 ## Índice
 
 1. [Primeiro acesso](#1-primeiro-acesso)
-2. [Cadastrar um Tenant](#2-cadastrar-um-tenant)
-3. [Configurar o webhook Meta por tenant](#3-configurar-o-webhook-meta-por-tenant)
+2. [Cadastrar uma Empresa](#2-cadastrar-uma-empresa)
+3. [Configurar o webhook Meta por empresa](#3-configurar-o-webhook-meta-por-empresa)
 4. [Cadastrar corretores](#4-cadastrar-corretores)
 5. [Cadastrar imóveis e empreendimentos](#5-cadastrar-imóveis-e-empreendimentos)
 6. [Configurar preferências de afinidade do corretor](#6-configurar-preferências-de-afinidade-do-corretor)
-7. [Fluxo operacional do SDR](#7-fluxo-operacional-do-sdr)
-8. [Pipeline do corretor](#8-pipeline-do-corretor)
-9. [Painel do Tenant](#9-painel-do-tenant)
-10. [Adicionar novos usuários](#10-adicionar-novos-usuários)
-11. [Deploy e ambientes](#11-deploy-e-ambientes)
-12. [Migração para domínio definitivo](#12-migração-para-domínio-definitivo)
-13. [Perguntas frequentes](#13-perguntas-frequentes)
+7. [Cadastrar um contato manualmente](#7-cadastrar-um-contato-manualmente)
+8. [Fluxo operacional do SDR](#8-fluxo-operacional-do-sdr)
+9. [Pipeline do corretor](#9-pipeline-do-corretor)
+10. [Painel da Empresa](#10-painel-da-empresa)
+11. [Adicionar novos usuários](#11-adicionar-novos-usuários)
+12. [Deploy e ambientes](#12-deploy-e-ambientes)
+13. [Migração para domínio definitivo](#13-migração-para-domínio-definitivo)
+14. [Perguntas frequentes](#14-perguntas-frequentes)
 
 ---
 
 ## 1. Primeiro acesso
 
-1. Acesse **crm.placego.com.br**
+1. Acesse **crm.placego.com.br** (produção) ou **placego-crm.vercel.app** (homologação)
 2. Entre com as credenciais de admin:
    - Email: `admin@placego.com.br`
    - Senha: *(definida no setup inicial)*
 3. **Troque a senha imediatamente** em Supabase → Authentication → Users → Edit user
 
-> O admin tem acesso total ao sistema. Guarde as credenciais em cofre de senhas (Bitwarden, 1Password etc.).
+> O admin tem acesso total ao sistema. Guarde as credenciais em cofre de senhas.
 
 ---
 
-## 2. Cadastrar um Tenant
+## 2. Cadastrar uma Empresa
 
-Tenants são os parceiros da PlaceGo: imobiliárias, incorporadoras, construtoras e corretores autônomos.
+Empresas são os parceiros da PlaceGo: imobiliárias, incorporadoras, construtoras e corretores autônomos.
 
-**Caminho:** Menu lateral → **Tenants** → **Novo Tenant**
+**Caminho:** Menu lateral → **Empresas** → **Nova Empresa**
 
 | Campo | Descrição | Exemplo |
 |---|---|---|
-| Nome | Nome da empresa ou pessoa | Imóveis Lisboa |
-| Tipo | Categoria do parceiro | Imobiliária |
-| Slug | Identificador único na URL (gerado automaticamente) | imoveis-lisboa |
-
-> O slug é usado na URL do painel do tenant: `/tenant/imoveis-lisboa`. Pode ser editado antes de salvar, mas evite mudar após o tenant já estar em uso.
+| Nome | Nome da empresa | Manaira Empreendimentos |
+| Tipo | Categoria do parceiro | Incorporadora |
+| Slug | Identificador único na URL (gerado automaticamente) | manaira-empreendimentos |
 
 ---
 
 ## 3. Configurar o webhook Meta por empresa
 
-Cada empresa parceira tem um Business Manager (BM) diferente no Meta Ads. O PlaceGo CRM usa um **único app Meta** (PlaceGo CRM — App ID: `1689147582125041`) que recebe leads de todas as empresas. Para cada empresa, um token único identifica de qual BM o lead veio.
+Cada empresa tem um Business Manager (BM) diferente no Meta Ads. O PlaceGo CRM usa um **único app Meta** (PlaceGo CRM — App ID: `1689147582125041`) que recebe contatos de todas as empresas. Cada empresa tem um token único que identifica de qual BM o contato veio.
 
-> **Captura de leads:** o webhook captura leads de campanhas **Facebook e Instagram** (Lead Ads e Dark Posts). Ambos chegam pelo mesmo evento `leadgen` — o campo `platform` no payload indica a origem.
+> **Canais capturados:** Lead Ads (formulários), Instagram DM, Facebook Messenger e comentários em posts — todos pelo mesmo app, cada um com evento específico.
 
 ### 3.1 Gerar o token no CRM
 
 1. Menu → **Empresas**
 2. Clique em **Webhook** na linha da empresa desejada
 3. Clique em **Gerar token de webhook**
-4. Copie a **URL do Webhook** e o **Token de verificação** (botões de cópia ao lado de cada campo)
+4. Copie a **URL do Webhook** e o **Token de verificação**
 
 ### 3.2 Configurar no Facebook for Developers
 
-O webhook é configurado no app **PlaceGo CRM** em [developers.facebook.com](https://developers.facebook.com/apps/1689147582125041):
-
-1. Acesse o app PlaceGo CRM → **Casos de uso** → **Personalizar**
-2. No menu lateral clique em **Webhooks**
-3. Em **Selecione o produto** escolha **Page**
-4. Preencha os campos:
-   - **URL de callback:** cole a URL copiada do CRM
-   - **Verificar token:** cole o token copiado do CRM
+1. Acesse o app em [developers.facebook.com/apps/1689147582125041](https://developers.facebook.com/apps/1689147582125041)
+2. **Casos de uso → Personalizar → Webhooks**
+3. Produto: **Page**
+4. Preencha:
+   - **URL de callback:** URL copiada do CRM
+   - **Verificar token:** token copiado do CRM
 5. Clique em **Verificar e salvar**
-6. Role a página para baixo e assine o campo **leadgen**
-7. Associe a página do Facebook da empresa ao app
+6. Assine o evento **`leadgen`** (e futuramente `messages`, `feed`)
 
-> **Importante — modo desenvolvimento vs produção:**
-> Enquanto o app não for publicado, só recebe webhooks de **teste enviados pelo painel do Meta**. Para receber leads reais de produção, o app precisa ser publicado em **Publicar** no menu lateral do app.
+> **Modo desenvolvimento:** enquanto o app não for publicado, só recebe leads de **teste pelo painel do Meta**. Para leads reais de campanha, o app precisa ser publicado.
 
 ### 3.3 Migração de URL (ao trocar de homologação para produção)
 
-Quando o domínio mudar de `placego-crm.vercel.app` para `crm.placego.com.br`, a URL do webhook muda. Para cada empresa:
+Quando o domínio mudar para `crm.placego.com.br`:
 
-1. No CRM: Menu → **Empresas** → **Webhook** → **Regenerar token**
-2. No app Meta (developers.facebook.com/apps/1689147582125041):
-   - Vá em **Casos de uso** → **Personalizar** → **Webhooks**
-   - Cole a nova URL e o novo token
-   - Clique em **Verificar e salvar**
+1. CRM → **Empresas → Webhook → Regenerar token** para cada empresa
+2. App Meta → **Webhooks → Atualizar URL e token → Verificar e salvar**
 
-> O token muda ao regenerar — a URL antiga para de funcionar imediatamente. Não há período de transição simultânea.
+> O token muda ao regenerar — a URL antiga para de funcionar imediatamente.
 
-### 3.4 Testar a integração
+### 3.4 Testar via curl
 
-No painel do app Meta → **Casos de uso** → **Personalizar** → **Ferramentas**, use o **Testador de webhook** para enviar um lead fictício. Após alguns segundos, o lead deve aparecer na **Fila SDR** do CRM.
-
-Alternativa via curl (mais rápido para testes):
 ```bash
 curl -X POST "https://placego-crm.vercel.app/api/leads/capture?token=SEU_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Lead Teste","phone":"11999990001","email":"teste@email.com","ad_name":"Campanha Teste"}'
+  -d '{"name":"Teste","phone":"11999990001","email":"teste@email.com","ad_name":"Campanha Teste"}'
 ```
 
 ### 3.5 Regenerar ou revogar token
 
-- **Regenerar:** gera um novo token (o anterior para de funcionar imediatamente). Necessário atualizar no app Meta também.
-- **Revogar:** desativa a integração completamente. Novos leads do Meta serão rejeitados até que um novo token seja gerado.
+- **Regenerar:** novo token (anterior para imediatamente). Atualizar no app Meta também.
+- **Revogar:** desativa a integração. Novos contatos do Meta são rejeitados.
 
 ---
 
@@ -119,17 +108,15 @@ curl -X POST "https://placego-crm.vercel.app/api/leads/capture?token=SEU_TOKEN" 
 | Campo | Descrição |
 |---|---|
 | Nome completo | Nome do corretor |
-| Email | Email de acesso ao CRM (será o login) |
-| Telefone/WhatsApp | Contato do corretor |
+| Email | Email de acesso ao CRM |
+| Telefone/WhatsApp | Contato (usado para notificações de leads) |
 | CRECI | Registro profissional |
-| Perfil | **Corretor Interno** (PlaceGo) ou **Corretor de Tenant** |
-| Tenant | Se for corretor de tenant, selecione o tenant vinculado |
+| Perfil | **Corretor Interno** (PlaceGo) ou **Corretor de Empresa** |
+| Empresa | Se corretor de empresa, selecione a empresa vinculada |
 
-> Ao cadastrar, o sistema cria o usuário no Supabase Auth automaticamente. Uma senha temporária é gerada — use a função **Reset de senha** do Supabase para enviar o email de redefinição ao corretor.
+> Ao cadastrar, o sistema cria o usuário no Supabase Auth automaticamente.
 
-### Após cadastrar: configurar preferências de afinidade
-
-Sem preferências, o sistema não consegue sugerir corretores no Lead Routing. Configure logo após o cadastro (ver seção 6).
+**Após cadastrar:** configure as preferências de afinidade (seção 6).
 
 ---
 
@@ -138,262 +125,263 @@ Sem preferências, o sistema não consegue sugerir corretores no Lead Routing. C
 **Caminho:** Menu → **Imóveis**
 
 ### Imóvel avulso
-Clique em **Imóvel** (botão azul) e preencha:
-- Tenant proprietário, tipo, endereço completo, valor, área e quartos
+Clique em **Imóvel** e preencha tipo, endereço completo, valor, área, quartos e empresa proprietária.
 
 ### Empreendimento (multi-unidade)
-Clique em **Empreendimento** e preencha:
-- Nome do empreendimento, cidade, faixa de valor (mín/máx)
+Clique em **Empreendimento** e preencha nome, cidade e faixa de valor (mín/máx).
 
-> **Importante:** vincular imóveis ao tenant correto é fundamental para que os leads do Meta sejam associados corretamente ao empreendimento de origem. Use o campo `external_id` para mapear com o ID do anúncio/imóvel no Meta.
+> **Importante:** vincular imóveis à empresa correta garante que leads do Meta sejam associados automaticamente à empresa de origem. Use o campo `external_id` para mapear com o ID do anúncio/imóvel no Meta.
 
 ---
 
 ## 6. Configurar preferências de afinidade do corretor
 
-As preferências determinam o score de afinidade no Lead Routing (quanto maior o score, mais o sistema sugere aquele corretor para determinado lead).
+As preferências determinam o score de afinidade no Lead Routing.
 
-**Caminho:** Menu → **Corretores** → **Editar** (ícone de lápis)
+**Caminho:** Menu → **Corretores** → **Editar**
 
 | Campo | Impacto no score | Dica |
 |---|---|---|
-| Cidades de atuação | +35 pontos | Separar por vírgula: `São Paulo, Guarulhos` |
-| Bairros de atuação | +20 pontos | Quanto mais específico, melhor a sugestão |
-| Valor mínimo | +25 pontos (se no range) | Valor em reais sem formatação: `500000` |
+| Cidades de atuação | +35 pontos | `São Paulo, Guarulhos` |
+| Bairros de atuação | +20 pontos | Quanto mais específico, melhor |
+| Valor mínimo | +25 pontos (se no range) | Valor em reais: `500000` |
 | Valor máximo | +25 pontos (se no range) | |
-| Tipos de imóvel | +20 pontos | Selecionar todos os tipos que o corretor atende |
+| Tipos de imóvel | +20 pontos | Selecionar todos os tipos que atende |
 
-**Score máximo possível:** 100 pontos  
-- ≥ 60 pts → Alta afinidade (aparece primeiro na tela de routing)  
-- 1–59 pts → Afinidade parcial  
-- 0 pts → Sem critérios cadastrados
+**Score máximo:** 100 pontos | ≥ 60 = Alta afinidade | 1–59 = Parcial | 0 = Sem critérios
 
 ---
 
-## 7. Fluxo operacional do SDR
+## 7. Cadastrar um contato manualmente
+
+O admin pode cadastrar contatos que chegaram por qualquer canal fora do sistema (ligação, visita presencial, indicação).
+
+**Caminho:** Menu → **Fila SDR** → **Adicionar contato**
+
+| Campo | Descrição |
+|---|---|
+| Nome | Nome da pessoa |
+| Telefone | WhatsApp ou telefone de contato |
+| Email | Email (opcional) |
+| Origem | De onde veio: WhatsApp, Instagram, Email, Indicação, Manual... |
+| Observações | Contexto do contato, interesse, imóvel mencionado |
+
+> O sistema atribui automaticamente ao próximo SDR via **round-robin**. O SDR recebe o contato no próprio Kanban.
+
+---
+
+## 8. Fluxo operacional do SDR
 
 **Caminho:** Menu → **Fila SDR**
 
-A fila mostra todos os leads com status **Novo** e **Aguardando**, ordenados por data de chegada (mais antigos primeiro). Cada card exibe score de qualidade, origem e tempo decorrido.
+### 8.1 Kanban SDR (individual)
 
-### 7.1 Filtros disponíveis
-
-- **Por status:** Novos / Aguardando / Qualificados / Inválidos / Duplicados
-- **Por origem:** Meta Ads / Landing Page / Manual / Portal
-
-### 7.2 Ações por lead
-
-| Ação | Quando usar |
-|---|---|
-| ✅ **Qualificar** (botão verde) | Lead válido e com interesse confirmado |
-| 🔀 **Distribuir** (botão de seta) | Enviar para corretores sem qualificar antes |
-| ⏳ **Aguardando** | Precisou ligar e não atendeu — revisar depois |
-| 🔁 **Duplicado** | Mesmo contato já está na fila |
-| ❌ **Invalidar** | Telefone inválido, spam, sem interesse real |
-
-> **Boa prática:** sempre qualifique antes de distribuir. Um lead qualificado sinaliza ao corretor que o SDR confirmou o interesse.
-
-### 7.3 Adicionar lead manual
-
-Clique em **Adicionar lead** (canto superior direito) para inserir leads que chegaram por outros canais (indicação, ligação direta, WhatsApp da empresa).
-
-### 7.4 Distribuir (Lead Routing)
-
-Ao clicar no ícone de distribuição (🔀):
-
-1. Revise o **card do lead** com todas as informações
-2. Veja os corretores sugeridos agrupados por afinidade
-3. Selecione **um ou mais corretores** (clique para marcar/desmarcar)
-4. Adicione uma observação opcional para os corretores
-5. Clique em **Distribuir lead**
-
-O lead é automaticamente marcado como **Qualificado** ao distribuir. Cada corretor selecionado recebe uma cópia vinculada ao lead original.
-
----
-
-## 8. Pipeline do corretor
-
-**Caminho:** Menu → **Pipeline** (ou **Meu Pipeline** para corretores)
-
-O pipeline é um quadro Kanban com 6 colunas:
+Cada SDR vê apenas seus próprios contatos organizados em 5 colunas:
 
 | Coluna | Significado |
 |---|---|
-| **Novo** | Lead recém recebido, ainda não contatado |
+| **Novo** | Contato recém atribuído, ainda não abordado |
+| **Em contato** | SDR já iniciou o atendimento |
+| **Aguardando** | Aguardando retorno do contato |
+| **Qualificado** | Interesse confirmado — vira lead para corretor |
+| **Inválido** | Telefone falso, spam, fora do perfil |
+
+### 8.2 Entendendo o score de qualidade
+
+Clique no número do score em qualquer card para ver o detalhamento:
+
+| Critério | Pontos |
+|---|---|
+| Nome preenchido | +20 |
+| Telefone válido | +30 |
+| Email informado | +20 |
+| Campanha identificada | +15 |
+| UTM / anúncio rastreado | +15 |
+| **Máximo** | **100** |
+
+Score ≥ 70 = alta chance de conversão.
+
+### 8.3 Filtros disponíveis
+
+- **Por status:** pills clicáveis no topo com contagem por coluna
+- **Por origem:** Meta Ads, Instagram, WhatsApp, Manual...
+- **Por empresa:** filtrar contatos de uma empresa específica
+
+### 8.4 Ações por contato
+
+| Ação | Quando usar |
+|---|---|
+| ✅ **Qualificar** | Interesse confirmado — distribui para corretor |
+| 🔀 **Distribuir** | Encaminhar para corretor diretamente |
+| ⏳ **Aguardando** | Não atendeu — revisar depois |
+| ❌ **Invalidar** | Telefone inválido, sem interesse |
+
+### 8.5 Distribuir um lead (routing)
+
+Ao qualificar um contato:
+
+1. O sistema abre a tela de **Distribuição**
+2. Corretores são sugeridos por score de afinidade (cidade, valor, tipo de imóvel)
+3. SDR seleciona um ou mais corretores
+4. Adiciona observação opcional
+5. Clique em **Distribuir lead**
+6. Corretor recebe notificação por email (e futuramente WhatsApp)
+
+### 8.6 Adicionar contato manualmente
+
+Clique em **Adicionar contato** (canto superior direito) para inserir contatos que chegaram por outros canais.
+
+### 8.7 Visão do gestor
+
+O gestor (`admin_placego`) vê todos os contatos de todos os SDRs com filtros por SDR e por empresa. Acessa via menu → **Fila SDR**.
+
+---
+
+## 9. Pipeline do corretor
+
+**Caminho:** Menu → **Pipeline**
+
+### Colunas do Kanban
+
+| Coluna | Significado |
+|---|---|
+| **Novo** | Lead recebido, ainda não contatado |
 | **Contatado** | Primeiro contato realizado |
 | **Visita Agendada** | Visita ao imóvel marcada |
-| **Proposta** | Proposta de compra/locação enviada |
-| **Ganho** | Negócio fechado |
-| **Perdido** | Negócio não concluído |
+| **Proposta** | Proposta enviada |
+| **Ganho** | Negócio fechado ✅ |
+| **Perdido** | Negócio não concluído ❌ |
 
 ### Mover um lead
 
-**Arrastar e soltar** o card para outra coluna — ou clicar na seta (→) no card para avançar para a próxima etapa.
+**Arrastar e soltar** ou clicar na seta (→) para avançar para a próxima etapa.
 
-> Ao mover para **Perdido**, um campo obrigatório de motivo é exibido. Preencha com detalhes — esses dados alimentam os relatórios de perda.
+> Ao mover para **Perdido**, o motivo é obrigatório.
 
 ### Registrar uma atividade
 
-Clique em **+ Atividade** no card para registrar:
+Clique em **+ Atividade** no card:
 - 📞 Ligação
 - 💬 WhatsApp
 - ✉️ Email
 - 📍 Visita
 - 📝 Anotação
 
-Opcionalmente, ao registrar a atividade você pode mover o lead para outra etapa ao mesmo tempo.
-
 ---
 
-## 9. Painel do Tenant
+## 10. Painel da Empresa
 
-Os tenants acessam o CRM pela mesma URL (`crm.placego.com.br`) com seu próprio login de `admin_tenant` ou `corretor_tenant`.
+Empresas parceiras acessam o CRM com login de `admin_empresa` ou `corretor_empresa`.
 
-### O que o tenant vê:
-- Seus próprios leads (nunca de outros tenants)
+**O que veem:**
+- Leads da própria empresa (nunca de outras)
 - Status de cada lead no pipeline
 - Histórico de atividades dos corretores vinculados
-- Métricas básicas do painel
+- Métricas básicas: total, qualificados, em atendimento, convertidos
 
-### O que o tenant **não** vê:
-- Leads de outros tenants
+**O que não veem:**
+- Contatos ainda na fase de qualificação pelo SDR
 - SDRs internos da PlaceGo
 - Configurações de roteamento
 - Dados financeiros da PlaceGo
 
 ---
 
-## 10. Adicionar novos usuários
+## 11. Adicionar novos usuários
 
-Todos os usuários são criados pelo **Admin PlaceGo** ou via `npm run db:seed` (apenas para o admin inicial).
-
-### Para SDRs e corretores internos (PlaceGo):
-1. Menu → **Corretores** → **Novo Corretor**
-2. Selecione perfil **Corretor Interno** ou peça ao dev para inserir diretamente no banco com role `sdr`
-
-### Para admins de tenant:
+### SDRs
 Inserção direta no banco via Supabase Studio:
-1. Crie o usuário em **Authentication → Users**
-2. Insira na tabela `users` com `role = 'admin_tenant'` e `tenant_id` correto
+1. Authentication → Users → Add user
+2. Inserir na tabela `users` com `role = 'sdr'`
+3. Definir `sdr_sequence_order` (posição na fila de round-robin: 1, 2, 3...)
 
-### Redefinir senha de um usuário:
-Supabase Dashboard → **Authentication → Users** → selecione o usuário → **Send password reset**
+### Corretores internos
+Menu → **Corretores** → **Novo Corretor** → perfil "Corretor Interno"
 
----
+### Corretores e admins de empresa
+Menu → **Corretores** → **Novo Corretor** → perfil "Corretor de Empresa" + selecionar empresa
 
-## 11. Perguntas frequentes
-
-**O lead chegou no Meta mas não apareceu na fila SDR. O que fazer?**
-1. Verifique se o webhook está ativo em Tenants → Webhook do tenant
-2. Confirme que a URL e o token estão corretos no BM do Meta
-3. Verifique os logs em Supabase → Edge Functions ou nos logs da Vercel
-
-**Um lead apareceu como "Duplicado". Isso é problema?**
-Não necessariamente. O sistema marcou automaticamente porque o mesmo telefone ou email já entrou nos últimos 30 dias. O SDR pode revisar e qualificar manualmente se achar que é uma nova oportunidade real.
-
-**O corretor não aparece com score alto mesmo atuando na mesma cidade.**
-Verifique se as preferências do corretor foram preenchidas em **Corretores → Editar**. O nome da cidade deve ser idêntico ao cadastrado no imóvel (maiúsculas/minúsculas e acentos são ignorados, mas a grafia precisa coincidir: `São Paulo` ≠ `Sao Paulo`).
-
-**Posso distribuir o mesmo lead para mais de um corretor?**
-Sim. Na tela de distribuição, selecione quantos corretores desejar. Cada um recebe uma cópia independente do lead e gerencia no próprio pipeline.
-
-**Como faço para o tenant ver apenas os leads dos imóveis dele?**
-Os leads são vinculados ao imóvel de origem (`source_property_id`). Certifique-se de que os imóveis foram cadastrados com o `tenant_id` correto e que o `external_id` do imóvel corresponde ao ID do anúncio no Meta.
+### Redefinir senha
+Supabase Dashboard → Authentication → Users → Send password reset
 
 ---
 
-## 11. Deploy e ambientes
+## 12. Deploy e ambientes
 
 ### Ambientes
 
 | Ambiente | URL | Finalidade |
 |---|---|---|
-| **Homologação** | `https://placego-crm.vercel.app` | Testes, validação de funcionalidades, integração com Meta |
-| **Produção** | `https://crm.placego.com.br` | Uso real — a migrar após homologação |
+| **Homologação** | `https://placego-crm.vercel.app` | Testes e validação |
+| **Produção** | `https://crm.placego.com.br` | Uso real |
 
 ### Repositório e CI/CD
 
 - **Repositório:** `github.com/creativedata-dev/placego-crm`
-- **Branch principal:** `main`
-- Todo push para `main` dispara deploy automático na Vercel
-- Preview deployments automáticos para Pull Requests
+- **Branch:** `main` → deploy automático na Vercel
+- **App Meta:** PlaceGo CRM (ID: `1689147582125041`)
 
 ### Variáveis de ambiente na Vercel
-
-Configure em **Vercel → Project → Settings → Environment Variables**:
 
 | Variável | Descrição |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave pública Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | Chave de serviço (nunca expor no frontend) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave de serviço |
 | `DATABASE_URL` | Connection string Transaction Pooler (porta 6543) |
-| `RESEND_API_KEY` | Chave da API Resend para emails |
-| `META_WEBHOOK_VERIFY_TOKEN` | Token global de fallback para webhook Meta |
-| `NEXT_PUBLIC_APP_URL` | URL base do ambiente (`https://placego-crm.vercel.app` em homologação) |
+| `RESEND_API_KEY` | Chave Resend |
+| `META_WEBHOOK_VERIFY_TOKEN` | Token global fallback |
+| `NEXT_PUBLIC_APP_URL` | URL base do ambiente |
 
-### Configuração do Supabase por ambiente
-
-Em **Supabase → Authentication → URL Configuration**, configure conforme o ambiente ativo:
+### Configuração Supabase por ambiente
 
 **Homologação:**
 - Site URL: `https://placego-crm.vercel.app`
 - Redirect URLs: `https://placego-crm.vercel.app/auth/callback`
 
-**Produção (após migração):**
+**Produção:**
 - Site URL: `https://crm.placego.com.br`
 - Redirect URLs: `https://crm.placego.com.br/auth/callback`
 
-> Mantenha **ambas** as URLs em Redirect URLs durante a transição para não interromper sessões ativas.
-
 ---
 
-## 12. Migração para domínio definitivo
+## 13. Migração para domínio definitivo
 
-Quando a homologação estiver concluída, siga esta sequência para migrar para `crm.placego.com.br`:
-
-### Passo 1 — Configurar domínio na Vercel
-1. Acesse **Vercel → Project → Settings → Domains**
-2. Adicione `crm.placego.com.br`
-3. Configure o DNS conforme instruído pela Vercel (registro CNAME ou A apontando para os servidores deles)
-4. Aguarde a propagação DNS e emissão do certificado SSL (geralmente < 10 minutos)
-
-### Passo 2 — Atualizar variável de ambiente
-1. Em **Vercel → Environment Variables**, altere:
-   - `NEXT_PUBLIC_APP_URL` → `https://crm.placego.com.br`
-2. Faça um novo deploy (Vercel → Deployments → Redeploy)
-
-### Passo 3 — Atualizar Supabase
-1. Acesse **Supabase → Authentication → URL Configuration**
-2. Atualize **Site URL** para `https://crm.placego.com.br`
-3. Em **Redirect URLs**, adicione `https://crm.placego.com.br/auth/callback`
-   - Mantenha também `https://placego-crm.vercel.app/auth/callback` por segurança durante a transição
-
-### Passo 4 — Regenerar tokens de webhook dos tenants
-
-> ⚠️ **Atenção:** os tokens de webhook existentes continuam funcionando, mas a URL base muda. Os tokens gerados durante a homologação apontavam para `placego-crm.vercel.app`. Após a migração, a URL gerada nos novos tokens já usará `crm.placego.com.br` automaticamente.
-
-Para cada tenant com webhook ativo:
-1. Menu → **Tenants → Webhook** do tenant
-2. Clique em **Regenerar token**
-3. Copie a nova URL e atualize no Business Manager do Meta
-
-### Passo 5 — Validar
-- Acesse `https://crm.placego.com.br` e confirme o login
-- Teste o recebimento de um lead via webhook com a nova URL
-- Confirme que os emails de notificação chegam com o link correto
-
-### Checklist de migração
+### Checklist completo
 
 - [ ] DNS configurado e propagado
 - [ ] Certificado SSL emitido pela Vercel
-- [ ] `NEXT_PUBLIC_APP_URL` atualizado e redeploy feito
+- [ ] `NEXT_PUBLIC_APP_URL` atualizado → redeploy
 - [ ] Supabase Site URL e Redirect URLs atualizados
 - [ ] Login funcionando em `crm.placego.com.br`
-- [ ] Tokens de webhook regenerados para todos os tenants ativos
-- [ ] Meta BM atualizado com novas URLs de webhook
+- [ ] Tokens de webhook regenerados para todas as empresas ativas
+- [ ] App Meta atualizado com novas URLs de webhook
 - [ ] Email de notificação testado com link correto
+
+### Atenção — tokens de webhook
+
+Ao regenerar tokens (necessário após mudar URL), as integrações Meta param imediatamente. Planeje a migração fora do horário de pico.
 
 ---
 
-## 13. Perguntas frequentes
+## 14. Perguntas frequentes
+
+**O contato chegou mas não apareceu na fila do SDR. O que fazer?**
+1. Verifique se o webhook está ativo em Empresas → Webhook
+2. Confirme URL e token no app Meta
+3. Verifique logs em Vercel → Deployments → View Function Logs
+
+**Um contato apareceu mas não foi atribuído a nenhum SDR.**
+Verifique se há usuários com `role = 'sdr'` cadastrados no banco. O round-robin só funciona com ao menos um SDR ativo.
+
+**O score está baixo mas o lead parece bom.**
+O score mede completude dos dados (nome, telefone, email, campanha, UTM) — não o interesse real. Um lead com score baixo pode ser excelente; o SDR valida isso na qualificação.
+
+**Posso distribuir o mesmo lead para mais de um corretor?**
+Sim. Na tela de distribuição, selecione quantos corretores desejar. Cada um gerencia de forma independente no próprio pipeline.
+
+**Como faço para a empresa ver apenas seus próprios leads?**
+Os leads são vinculados ao `company_id`. Verifique se os imóveis foram cadastrados com a empresa correta e se o webhook está configurado com o token da empresa certa.
+
+**O SDR que cadastrou o contato fica com ele?**
+Não necessariamente. O sistema distribui pelo round-robin independente de quem cadastrou. Apenas o admin pode cadastrar contatos manualmente — e o sistema atribui ao próximo SDR da fila automaticamente.

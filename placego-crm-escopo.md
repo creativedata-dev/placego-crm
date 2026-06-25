@@ -1,336 +1,407 @@
-# PlaceGo CRM — Documento de Escopo v1.0
+# PlaceGo CRM — Documento de Escopo v2.0
 
 **Produto:** crm.placego.com.br  
 **Data:** Junho 2026  
-**Status:** Rascunho para aprovação  
+**Status:** Em desenvolvimento — v2.0 revisado  
+**Versão anterior:** v1.0 (Junho 2026) — substituída por esta revisão
 
 ---
 
 ## 1. Visão Geral
 
-O PlaceGo CRM é uma plataforma de gestão de leads imobiliários com roteamento inteligente, projetada para operar em modelo híbrido: a equipe interna da PlaceGo gerencia o fluxo operacional completo, enquanto parceiros (imobiliárias, incorporadoras, construtoras e corretores autônomos) acessam seus próprios leads e métricas via painel isolado.
+O PlaceGo CRM é uma plataforma de gestão de contatos e leads imobiliários com atendimento omnichannel e roteamento inteligente, projetada para operar em modelo híbrido: a equipe interna da PlaceGo gerencia o fluxo operacional completo, enquanto empresas parceiras (imobiliárias, incorporadoras, construtoras e corretores autônomos) acessam seus próprios leads e métricas via painel isolado.
 
-O diferencial central é o **Lead Routing pelo SDR**: um lead gerado por um imóvel/empreendimento pode ser validado e distribuído para múltiplos corretores com base em critérios de afinidade — localização, faixa de valor e características do imóvel.
+### Diferencial central
+
+O sistema opera em duas etapas distintas:
+
+1. **Contato → SDR:** qualquer pessoa que interaja com a empresa por qualquer canal (WhatsApp, Instagram, Facebook, email, formulário) entra como **contato** e é distribuído automaticamente para um SDR via round-robin. O SDR qualifica o contato pelo próprio CRM, respondendo pelo canal de origem.
+
+2. **Lead → Corretor:** após qualificação pelo SDR, o contato vira **lead** e é distribuído para corretores com base em critérios de afinidade (localização, faixa de valor, tipo de imóvel). O corretor recebe notificação via WhatsApp com link direto ao lead.
 
 ---
 
 ## 2. Ecossistema PlaceGo
 
 ```
-Meta Ads (Dark Posts / Lead Ads)
-        │
-        ▼
-[ Webhook / Lead Capture API ]
-        │
-        ▼
-┌──────────────────────────────────────┐
-│         crm.placego.com.br           │  ← Escopo deste documento
-│                                      │
-│  SDR → Validação → Lead Routing      │
-│  Corretor → Contato → Pipeline       │
-│  Tenant → Painel próprio (limitado)  │
-└──────────────────────────────────────┘
-        │
-        ▼ (cross-platform)
-┌──────────────────────────────────────┐
-│        placego.com.br                │  ← Marketplace (Lovable → migrar)
-│  Listagem pública de imóveis         │
-│  LPs de empreendimentos              │
-└──────────────────────────────────────┘
+CANAIS DE ENTRADA
+──────────────────────────────────────────────────────
+WhatsApp          Instagram DM      Facebook DM
+Email             Comentários       Lead Ads (Meta)
+Landing Pages     Portais           Manual (admin)
+──────────────────────────────────────────────────────
+                        │
+                        ▼
+        ┌───────────────────────────────┐
+        │      crm.placego.com.br       │
+        │                               │
+        │  CONTATO → SDR (round-robin)  │
+        │  Kanban SDR por atendente     │
+        │  Atendimento omnichannel      │
+        │                               │
+        │  LEAD → Corretor (afinidade)  │
+        │  Pipeline de vendas Kanban    │
+        │                               │
+        │  Empresa → Painel próprio     │
+        └───────────────────────────────┘
+                        │
+                        ▼
+        ┌───────────────────────────────┐
+        │       placego.com.br          │
+        │  Marketplace (migrar Lovable) │
+        └───────────────────────────────┘
 ```
 
 ---
 
-## 3. Atores e Perfis de Acesso
+## 3. Nomenclatura e Fluxo
 
-| Perfil | Acesso | Responsabilidade |
+### 3.1 Contato vs Lead
+
+| Termo | Definição | Responsável |
 |---|---|---|
-| **Admin PlaceGo** | Total | Configuração geral, tenants, relatórios globais |
-| **SDR PlaceGo** | CRM operacional | Validar leads, distribuir para corretores |
-| **Corretor PlaceGo** | Pipeline próprio | Atender leads atribuídos, registrar interações |
-| **Admin Tenant** | Painel do tenant | Ver leads do próprio empreendimento/imobiliária |
-| **Corretor Tenant** | Leads recebidos | Acompanhar leads enviados para ele pelo SDR |
+| **Contato** | Pessoa que interagiu por qualquer canal, ainda não qualificada | SDR |
+| **Lead** | Contato qualificado pelo SDR, com interesse confirmado | Corretor |
+
+### 3.2 Fluxo completo
+
+```
+1. ENTRADA DO CONTATO
+   Qualquer canal → sistema cria contato automaticamente
+   OU admin cadastra manualmente com origem identificada
+        │
+        ▼
+2. DISTRIBUIÇÃO SDR (round-robin automático)
+   Contato 1 → SDR1 | Contato 2 → SDR2 | Contato 3 → SDR3
+   Contato 4 → SDR1 | ... (ciclo contínuo)
+        │
+        ▼
+3. KANBAN SDR (individual por atendente)
+   Novo → Em contato → Aguardando → Qualificado | Inválido
+   SDR responde pelo CRM: WhatsApp, DM, comentário, email
+   Gestor vê todos com filtro por SDR
+        │
+        ▼ (ao mover para Qualificado)
+4. CONTATO VIRA LEAD
+   SDR acessa tela de routing
+   Sistema sugere corretores por afinidade
+   SDR seleciona corretor(es) e distribui
+        │
+        ▼
+5. NOTIFICAÇÃO CORRETOR
+   WhatsApp via Evolution API com link direto ao lead no CRM
+        │
+        ▼
+6. KANBAN CORRETOR (pipeline de vendas)
+   Novo → Contatado → Visita → Proposta → Ganho | Perdido
+   Motivo de perda obrigatório
+        │
+        ▼
+7. ACOMPANHAMENTO
+   SDR vê painel duplo: qualificação + vendas dos leads distribuídos
+   Admin vê funil global + filtros por SDR e corretor
+   Empresa vê seus leads (sem dados de outras)
+```
 
 ---
 
-## 4. Modelo Multi-Tenant
+## 4. Atores e Perfis de Acesso
 
-### 4.1 Tipos de Tenant
+| Perfil | Acesso | Responsabilidade |
+|---|---|---|
+| **Admin PlaceGo** | Total | Cadastra contatos, configura sistema, relatórios globais, gestão de empresas |
+| **SDR PlaceGo** | Kanban próprio + leads distribuídos | Qualifica contatos, atende pelo CRM, distribui leads para corretores |
+| **Corretor PlaceGo** | Pipeline próprio | Atende leads atribuídos, registra interações |
+| **Admin Empresa** | Painel da empresa | Vê leads da própria empresa, métricas básicas |
+| **Corretor Empresa** | Leads recebidos | Pipeline próprio (leads enviados pelo SDR) |
 
+---
+
+## 5. Modelo Multi-Empresa (Multi-Tenant)
+
+### 5.1 Tipos de empresa parceira
 - Imobiliária
 - Incorporadora
 - Construtora
 - Corretor autônomo
 
-### 4.2 Estratégia de Isolamento
+### 5.2 Estratégia de isolamento
+Banco compartilhado com `company_id` em todas as tabelas + Supabase RLS.
 
-**Banco compartilhado com `tenant_id` em todas as tabelas** (Row-Level Security via Supabase RLS).
-
-Justificativa: menor custo operacional, mais simples de manter no MVP, e o Supabase RLS garante isolamento seguro sem infra extra por tenant. Rever para schema-per-tenant se a base ultrapassar 500 tenants ativos.
-
-### 4.3 O que cada Tenant vê
-
-- Leads gerados para seus imóveis/empreendimentos
-- Status de cada lead no pipeline
-- Histórico de contatos realizados pelos corretores
-- Métricas básicas (volume, taxa de conversão, tempo médio de resposta)
-
-O tenant **não vê** leads de outros tenants, SDRs internos, configurações de roteamento, nem dados financeiros da PlaceGo.
+### 5.3 Canais por empresa
+Cada empresa configura seus próprios canais de atendimento com credenciais independentes. Um único app Meta (PlaceGo CRM — App ID: `1689147582125041`) recebe contatos de todas as empresas, identificadas pelo token único de cada uma.
 
 ---
 
-## 5. Fluxo Central de Lead
+## 6. Canais de Atendimento
+
+### 6.1 Canais suportados
+
+| Canal | Captura automática | Resposta pelo CRM | Fase |
+|---|---|---|---|
+| WhatsApp | Via Evolution API | ✅ Sim | Fase 2 |
+| Instagram DM | Via Meta Webhook | ✅ Sim | Fase 2 |
+| Facebook Messenger | Via Meta Webhook | ✅ Sim | Fase 2 |
+| Comentários (Meta) | Via Meta Webhook | ✅ Sim | Fase 2 |
+| Email | Via Resend Inbound | ✅ Sim | Fase 2 |
+| Lead Ads (Meta) | Via Meta Webhook | — | ✅ Fase 1 |
+| Landing Page | Via API | — | ✅ Fase 1 |
+| Manual (admin) | Formulário CRM | — | ✅ Fase 1 |
+| Portais (Zap, Viva Real) | Via Webhook | — | Fase 3 |
+
+### 6.2 Origens de contato
 
 ```
-1. CAPTURA
-   Meta Ads Lead Ad / Dark Post
-   → Webhook → API PlaceGo
-   → Lead criado com: nome, telefone, email, imóvel de origem, UTMs, timestamp
-
-2. FILA SDR
-   Lead entra em status: "Novo"
-   SDR vê fila ordenada por timestamp + score de qualidade
-   SDR faz validação (telefone válido? interesse confirmado? perfil real?)
-
-3. VALIDAÇÃO
-   SDR marca como: Qualificado | Duplicado | Inválido | Aguardando
-
-4. LEAD ROUTING (diferencial)
-   SDR qualificado → tela de distribuição
-   Sistema sugere corretores com base em:
-   a) Localização (bairro/cidade do imóvel vs. carteira do corretor)
-   b) Faixa de valor (ticket do imóvel vs. perfil do corretor)
-   c) Características (tipo: apto/casa/comercial, metragem, quartos)
-   SDR seleciona 1 ou mais corretores → envia
-
-5. ATENDIMENTO
-   Corretor recebe notificação (email + futuramente WhatsApp)
-   Corretor registra tentativas de contato
-   Lead avança no pipeline: Novo → Contato → Visita → Proposta → Fechado / Perdido
-
-6. ACOMPANHAMENTO
-   SDR monitora SLA de resposta
-   Admin PlaceGo vê funil completo
-   Tenant vê seus leads
+meta_leadgen        ← formulário Lead Ads
+meta_dm_instagram   ← Direct Instagram
+meta_dm_facebook    ← Messenger Facebook
+meta_comment        ← comentário em post/anúncio
+whatsapp            ← WhatsApp recebido
+email               ← email recebido
+lp                  ← landing page
+indicacao           ← indicação
+manual              ← cadastro direto pelo admin
+portal              ← portais imobiliários
 ```
+
+### 6.3 Configurações por empresa e canal
+
+Cada empresa configura por canal:
+- Ativar/desativar canal
+- Credenciais (token Evolution, page_id Meta, email IMAP)
+- **Resposta automática de boas-vindas** (por canal)
+- **Horário de atendimento** + mensagem fora do horário
+- **Palavras-chave de interesse** para comentários (ex: "interesse", "preço", "quero")
 
 ---
 
-## 6. Módulos do Sistema
+## 7. Módulos do Sistema
 
-### 6.1 Captura de Leads (`/api/leads/capture`)
-- Webhook compatível com Meta Lead Ads
-- Deduplicação por telefone/email + janela de 30 dias
-- Enriquecimento automático com dados do imóvel de origem
-- Score inicial de qualidade (baseado em completude dos dados)
+### 7.1 Gestão de Canais (`/companies/[id]/channels`)
+- Interface de ativação/desativação por canal
+- Configuração de credenciais por canal
+- Respostas automáticas e horários
+- Palavras-chave de comentários
 
-### 6.2 Fila SDR
-- Lista de leads em status "Novo" e "Aguardando"
-- Filtros: origem, imóvel, tenant, data
-- Ações: Qualificar, Invalidar, Marcar duplicado, Encaminhar
-- Histórico de tentativas de contato pelo SDR
+### 7.2 Captura de Contatos (`/api/contacts/capture`)
+- Webhook unificado para Meta (Lead Ads, DM, comentários)
+- Deduplicação por telefone/email (janela 30 dias)
+- Round-robin automático para SDR disponível
+- Score de qualidade por completude dos dados
 
-### 6.3 Lead Routing
-- Tela de distribuição com sugestão de corretores por afinidade
-- Multi-select de corretores (1 lead → N corretores)
-- Registro de justificativa do SDR (opcional)
-- Lead "espelhado": cada corretor recebe uma cópia vinculada ao lead original
-- Rastreabilidade: quem recebeu, quando, qual status cada um deu
+### 7.3 Kanban SDR (por atendente)
+- Cada SDR vê apenas seus contatos
+- Colunas: Novo → Em contato → Aguardando → Qualificado | Inválido
+- Interface de resposta por canal (WhatsApp, DM, email, comentário)
+- Timeline unificada de todas as interações por contato
+- Gestor vê todos com filtro por SDR
 
-### 6.4 Pipeline de Vendas (Kanban)
-- Por corretor: visão das colunas Novo → Contatado → Visita Agendada → Proposta → Ganho / Perdido
-- Drag-and-drop entre colunas
-- Registro de atividades (ligação, WhatsApp, email, visita)
-- Motivo de perda obrigatório ao mover para "Perdido"
+### 7.4 Routing de Leads
+- Ativado ao mover contato para "Qualificado"
+- Engine de afinidade: cidade (+35), bairro (+20), valor (+25), tipo (+20)
+- Multi-select de corretores
+- Notificação WhatsApp para corretor via Evolution API
 
-### 6.5 Cadastro de Imóveis / Empreendimentos
-- CRUD de imóveis (avulsos) e empreendimentos (multi-unidade)
-- Atributos: tipo, endereço, bairro, cidade, valor, metragem, quartos, suítes, vagas
-- Vinculação ao tenant (proprietário do imóvel)
+### 7.5 Pipeline de Vendas — Corretor (Kanban)
+- Colunas: Novo → Contatado → Visita → Proposta → Ganho | Perdido
+- Drag-and-drop + avanço rápido por card
+- Registro de atividades (ligação, WhatsApp, email, visita, nota)
+- Motivo de perda obrigatório
+
+### 7.6 Painel Duplo SDR
+- Aba 1: Kanban de qualificação (contatos)
+- Aba 2: Acompanhamento de vendas (leads distribuídos + status no pipeline)
+
+### 7.7 Cadastro de Imóveis / Empreendimentos
+- CRUD de imóveis avulsos e empreendimentos
+- Vinculação à empresa parceira
 - Status: Ativo, Vendido, Suspenso
-- Integração futura: sync com marketplace placego.com.br
+- `external_id` para sync com marketplace
 
-### 6.6 Cadastro de Corretores
-- Perfil: nome, CRECI, telefone, email, regiões de atuação, faixas de valor
-- Vínculo com tenant ou corretor autônomo
-- Histórico de leads recebidos e conversão
+### 7.8 Dashboards e Relatórios
+- **Admin:** funil global, volume por empresa, top SDRs, top corretores
+- **SDR:** SLA de qualificação, taxa de rejeição, leads distribuídos
+- **Gestor:** visão de todos os SDRs e corretores com filtros
+- Exportação CSV: contatos, leads, pipeline, performance
 
-### 6.7 Painel Tenant
-- Acesso via subdomain ou rota: `crm.placego.com.br/tenant/[slug]`
-- Visão dos leads do tenant (sem dados de outros)
-- Métricas: total de leads, qualificados, em atendimento, convertidos
-- Corretores vinculados ao tenant
-
-### 6.8 Relatórios e Métricas
-- Funil global (Admin PlaceGo)
-- Performance por SDR (tempo médio de qualificação, taxa de rejeição)
-- Performance por corretor (leads recebidos, contatos feitos, conversão)
-- Volume por tenant, por imóvel, por origem (campanha Meta)
-- Exportação CSV
-
-### 6.9 Autenticação e Permissões
-- Supabase Auth (email/senha + magic link)
-- RBAC baseado em roles: admin_placego, sdr, corretor, admin_tenant, corretor_tenant
-- RLS no banco garantindo isolamento de dados por tenant
-
-### 6.10 Notificações
-- Fase 1: Email transacional (Resend ou SendGrid)
-- Fase 2: WhatsApp via Twilio (já usado na FarmaSign — reaproveitar padrão)
+### 7.9 Autenticação e Permissões
+- Supabase Auth (email/senha)
+- RBAC: admin_placego, sdr, corretor, admin_empresa, corretor_empresa
+- Isolamento de dados por empresa via middleware
 
 ---
 
-## 7. Stack Técnica
+## 8. Stack Técnica
 
-### 7.1 CRM (crm.placego.com.br)
-
-| Camada | Tecnologia | Justificativa |
+| Camada | Tecnologia | Versão |
 |---|---|---|
-| Frontend | Next.js 14+ (App Router) | SSR + RSC + rotas de API integradas |
-| UI | shadcn/ui + Tailwind CSS | Componentes acessíveis, customizáveis |
-| Auth | Supabase Auth | Integrado ao banco, RLS nativo |
-| Banco | PostgreSQL via Supabase | RLS, real-time, storage, edge functions |
-| ORM | Prisma ou Drizzle | Type-safety, migrations versionadas |
-| API interna | Next.js Route Handlers | Sem servidor separado no MVP |
-| Hospedagem | Vercel | Deploy automático, preview por branch |
-| Email | Resend | Simples, barato, boa DX |
-| Webhook Meta | Next.js API Route | Endpoint dedicado para Lead Ads |
+| Framework | Next.js App Router | 16.x |
+| UI | shadcn/ui v4 + Tailwind CSS v4 | — |
+| Componentes | Base UI (`@base-ui/react`) | — |
+| Auth | Supabase Auth + `@supabase/ssr` | — |
+| Banco | PostgreSQL via Supabase | — |
+| ORM | Drizzle ORM | — |
+| Email transacional | Resend | — |
+| Email inbound | Resend Inbound | Fase 2 |
+| WhatsApp | Evolution API (self-hosted ou cloud) | Fase 2 |
+| Meta integração | App PlaceGo CRM (ID: 1689147582125041) | — |
+| Deploy | Vercel | — |
+| Repositório | github.com/creativedata-dev/placego-crm | — |
 
-### 7.2 Banco de Dados — Estrutura Principal (esboço)
+---
+
+## 9. Schema do Banco — Versão 2.0
 
 ```sql
--- Tenants
-tenants (id, name, type: imobiliaria|incorporadora|construtora|corretor, slug, created_at)
+-- Empresas parceiras (antes: tenants)
+companies (id, name, type, slug, webhook_token, created_at)
 
--- Usuários com roles
-users (id, email, name, role, tenant_id nullable, created_at)
--- role: admin_placego | sdr | corretor | admin_tenant | corretor_tenant
+-- Usuários
+users (id, email, name, role, company_id, phone, sdr_sequence_order, created_at)
 
--- Imóveis
-properties (id, tenant_id, type, address, neighborhood, city, price, area_m2, bedrooms, status)
+-- Canais por empresa
+company_channels (
+  id, company_id, channel_type, is_active,
+  config jsonb,           -- credenciais por canal
+  welcome_message,        -- por canal
+  business_hours jsonb,   -- horários de atendimento
+  after_hours_message,
+  keywords text[]         -- para comentários
+)
 
--- Empreendimentos (multi-unidade)
-developments (id, tenant_id, name, address, city, min_price, max_price, status)
+-- Imóveis e empreendimentos
+properties (id, company_id, type, address, neighborhood, city, price, area_m2, ...)
+developments (id, company_id, name, address, city, min_price, max_price, ...)
 
--- Leads
-leads (id, name, phone, email, source_property_id, source_development_id, 
-       origin: meta_ads|lp|manual, campaign_id, utm_source, utm_medium,
-       status: new|waiting|qualified|invalid|duplicate,
-       sdr_id, created_at, qualified_at)
+-- Contatos (antes: leads em status new/waiting)
+contacts (
+  id, name, phone, email, company_id,
+  origin,          -- canal de origem
+  stage,           -- 'contato' | 'lead'
+  source_property_id, source_development_id,
+  campaign_id, ad_name, adset_name, form_name,
+  utm_source, utm_medium, utm_campaign,
+  quality_score,
+  meta_user_id,    -- para DM e comentários
+  created_at
+)
 
--- Distribuição de leads
-lead_assignments (id, lead_id, broker_id, assigned_by_sdr_id, assigned_at,
-                  status: new|contacted|visiting|proposal|won|lost,
-                  loss_reason)
+-- Atribuições SDR (round-robin)
+sdr_assignments (
+  id, contact_id, sdr_id, assigned_at,
+  status,          -- novo|em_contato|aguardando|qualificado|invalido
+  qualified_at
+)
 
--- Atividades no pipeline
-lead_activities (id, lead_assignment_id, user_id, type: call|whatsapp|email|visit|note,
-                 notes, created_at)
+-- Mensagens (timeline unificada)
+contact_messages (
+  id, contact_id, sdr_id,
+  channel,         -- whatsapp|instagram_dm|facebook_dm|email|comment
+  direction,       -- in|out
+  content, meta_message_id,
+  sent_at, read_at
+)
 
--- Critérios de afinidade do corretor (para routing)
-broker_preferences (id, broker_id, cities[], neighborhoods[], min_price, max_price, 
-                    property_types[])
+-- Distribuição de leads (contatos qualificados → corretores)
+lead_assignments (id, contact_id, broker_id, assigned_by_sdr_id, status, loss_reason, ...)
+
+-- Atividades no pipeline do corretor
+lead_activities (id, lead_assignment_id, user_id, type, notes, created_at)
+
+-- Preferências de afinidade do corretor
+broker_preferences (id, broker_id, cities[], neighborhoods[], min_price, max_price, property_types[], creci)
 ```
 
-### 7.3 Marketplace (placego.com.br) — Migração da Lovable
+---
 
-**Estratégia de migração em 3 fases:**
+## 10. Roadmap de Desenvolvimento
 
-**Fase A — Auditoria (pré-desenvolvimento CRM)**
-- Exportar schema atual do Supabase da Lovable
-- Mapear todas as entidades, relações e dados existentes
-- Identificar componentes React reutilizáveis no código gerado
-- Documentar integrações ativas (auth, storage, edge functions)
+### ✅ Concluído (Fases 1, 2 e 3 originais)
+- Setup Next.js + Supabase + Vercel + Drizzle
+- Auth RBAC com 5 roles
+- CRUD Empresas, Imóveis, Corretores
+- Webhook Meta Lead Ads com token por empresa
+- Kanban SDR (versão inicial — sendo revisado)
+- Lead Routing com engine de afinidade
+- Pipeline Kanban corretor
+- Notificações email (Resend)
+- Dashboards Admin e SDR
+- Relatórios CSV
+- App Meta criado (ID: 1689147582125041)
 
-**Fase B — CRM primeiro (paralelo ao uso da Lovable)**
-- Desenvolver o CRM completo em crm.placego.com.br
-- Criar schema de banco unificado (CRM + futuro marketplace)
-- Definir contrato de API entre CRM e marketplace
-- Lovable continua em produção sem alterações
+### 🔄 Fase A — Fundação omnichannel (atual)
+- [ ] Schema v2: contacts, sdr_assignments, contact_messages, company_channels
+- [ ] Round-robin de SDRs
+- [ ] Gestão de canais por empresa (tela de configuração)
+- [ ] Formulário cadastro manual de contato (admin)
+- [ ] Kanban SDR individual por atendente
+- [ ] Visão gestor com filtros SDR/corretor
+- [ ] Webhook Lead Ads → round-robin (atualizar existente)
 
-**Fase C — Migração do Marketplace**
-- Recriar o marketplace em Next.js usando o mesmo banco do CRM
-- Migrar dados da Lovable para o banco unificado
-- DNS cutover gradual (subdomínio de staging primeiro)
-- Deprecar Lovable após validação em produção
+### 📋 Fase B — Atendimento multicanal
+- [ ] Webhook DM Instagram/Facebook
+- [ ] Webhook comentários com filtro de palavras-chave por empresa
+- [ ] Email inbound (Resend Inbound)
+- [ ] Timeline unificada de mensagens por contato
+- [ ] Interface de resposta: WhatsApp (Evolution), DM (Meta), Email
+- [ ] Resposta automática de boas-vindas por canal
+
+### 📋 Fase C — Distribuição e notificações
+- [ ] Qualificar contato → vira lead → routing
+- [ ] WhatsApp para corretor via Evolution API
+- [ ] Painel duplo SDR (qualificação + acompanhamento vendas)
+- [ ] Provisionar instância Evolution API
+
+### 📋 Fase D — Integração e escala
+- [ ] Portais imobiliários (Zap, Viva Real)
+- [ ] Meta Conversions API (eventos de conversão)
+- [ ] Publicar app Meta para produção (aprovação de permissões avançadas)
+- [ ] Sync com marketplace placego.com.br
+- [ ] Controle de acesso por plano de empresa
 
 ---
 
-## 8. Roadmap de Desenvolvimento
+## 11. Decisões tomadas
 
-### Fase 1 — Fundação (Semanas 1–4)
-- [ ] Setup do projeto Next.js + Supabase + Vercel
-- [ ] Schema do banco (migrations com Drizzle/Prisma)
-- [ ] Autenticação e RBAC (Supabase Auth + RLS)
-- [ ] CRUD de Tenants, Imóveis, Corretores
-- [ ] Webhook de captura de leads (Meta Lead Ads)
-- [ ] Fila de leads para SDR (listagem + filtros)
+| # | Decisão | Escolha |
+|---|---|---|
+| 1 | ORM | Drizzle (TypeScript-first, Edge Runtime) |
+| 2 | URL empresa | `/tenant/[slug]` (não subdomínio) |
+| 3 | WhatsApp | Evolution API (não Twilio) |
+| 4 | Email inbound | Resend Inbound |
+| 5 | App Meta | Único app PlaceGo CRM para todos os tenants |
+| 6 | Nomenclatura | "Contato" antes de qualificar, "Lead" após |
+| 7 | Resposta automática | Configurável por canal dentro de cada empresa |
+| 8 | WhatsApp SDR | Pelo número da empresa (Evolution), não pessoal |
 
-### Fase 2 — Core do CRM (Semanas 5–8)
-- [ ] Módulo de validação de leads pelo SDR
-- [ ] Lead Routing — engine de afinidade + tela de distribuição
-- [ ] Pipeline Kanban para corretores
-- [ ] Registro de atividades por lead
-- [ ] Notificações por email (Resend)
-- [ ] Painel básico do Tenant
+## 12. Decisões em aberto
 
-### Fase 3 — Métricas e Produto (Semanas 9–12)
-- [ ] Dashboard Admin PlaceGo (funil, KPIs)
-- [ ] Dashboard SDR (performance, SLA)
-- [ ] Dashboard Corretor (pipeline pessoal)
-- [ ] Relatórios com exportação CSV
-- [ ] Deduplicação avançada de leads
-- [ ] Score de qualidade de leads
-
-### Fase 4 — Integração e Escala (Semanas 13–16)
-- [ ] Notificações WhatsApp (Twilio)
-- [ ] Sync com marketplace placego.com.br (API cross-platform)
-- [ ] Monetização: controle de acesso por plano de tenant
-- [ ] Auditoria e migração da Lovable (Fase A)
-- [ ] Preparação da migração do marketplace (Fase B)
+| # | Decisão | Prazo |
+|---|---|---|
+| 1 | Modelo de monetização (pay-per-lead vs assinatura) | Antes da Fase D |
+| 2 | Infraestrutura Evolution API (self-hosted vs cloud) | Antes da Fase C |
+| 3 | Permissões Meta avançadas (DM + comentários) — consultar cliente | Fase B |
+| 4 | Lead routing: manual vs sugestão automática por IA | Backlog |
 
 ---
 
-## 9. Modelo de Monetização
+## 13. Ambientes
 
-| Modelo | Descrição |
-|---|---|
-| **Pay per lead** | Tenant paga por lead qualificado recebido |
-| **Assinatura mensal** | Tenant paga acesso ao painel + leads ilimitados da faixa |
-| **Híbrido** | Assinatura base + pay-per-lead acima de cota |
-
-A escolha entre esses modelos impacta o módulo de billing — a ser definida antes da Fase 3. Recomendação: começar com pay-per-lead (mais simples de implementar e validar).
+| Ambiente | URL | Status |
+|---|---|---|
+| Homologação | https://placego-crm.vercel.app | ✅ Ativo |
+| Produção | https://crm.placego.com.br | 📋 Após homologação |
 
 ---
 
-## 10. Integrações Futuras
+## 14. Critérios de Sucesso
 
-- **Meta Conversions API** — envio de eventos de conversão para otimização de campanhas
-- **Google Ads** — captura de leads via formulários nativos
-- **Portais imobiliários** — Zap Imóveis, Viva Real (webhooks de leads)
-- **Assinatura digital** — contratos de compra/locação
-- **BI externo** — Metabase, Looker Studio via views do PostgreSQL
-
----
-
-## 11. Decisões em Aberto (a definir antes de iniciar dev)
-
-| # | Decisão | Opções | Prazo |
-|---|---|---|---|
-| 1 | ORM: Prisma vs Drizzle | Prisma (maduro) vs Drizzle (mais leve, TS-first) | Antes da Fase 1 |
-| 2 | Modelo de monetização inicial | Pay-per-lead vs Assinatura | Antes da Fase 3 |
-| 3 | Slug de acesso tenant | Subdomínio vs rota `/tenant/[slug]` | Antes da Fase 2 |
-| 4 ] Lead routing: manual (SDR) vs sugestão automática (AI) | MVP manual, AI futuramente | Backlog |
+- Contato capturado por qualquer canal aparece no CRM em < 60 segundos
+- SDR consegue qualificar e distribuir um contato em < 3 minutos
+- Corretor recebe WhatsApp com link e acessa o lead sem treinamento
+- Empresa vê apenas seus próprios dados
+- SDR responde ao contato pelo canal de origem sem sair do CRM
 
 ---
 
-## 12. Critérios de Sucesso do MVP
-
-- Lead capturado via Meta Ads chega na fila do SDR em < 60 segundos
-- SDR consegue qualificar e distribuir um lead em < 3 minutos
-- Corretor recebe notificação e consegue registrar primeira atividade sem treinamento
-- Tenant consegue ver seus leads sem acesso a dados de outros tenants
-- Zero vazamento de dados entre tenants (validado via testes RLS)
-
----
-
-*Documento gerado em Junho 2026 — PlaceGo / JCE Comunicação*
+*Documento v2.0 — Junho 2026 — PlaceGo / JCE Comunicação*

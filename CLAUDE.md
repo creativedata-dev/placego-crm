@@ -15,7 +15,28 @@ Documentação técnica para desenvolvimento com IA e onboarding de devs.
 | Banco | PostgreSQL via Supabase | — |
 | ORM | Drizzle ORM | — |
 | Email | Resend | — |
+| WhatsApp | Evolution API | Fase C |
 | Deploy | Vercel | — |
+
+---
+
+## Conceitos fundamentais
+
+### Contato vs Lead
+- **Contato:** pessoa que interagiu por qualquer canal, ainda não qualificada pelo SDR
+- **Lead:** contato qualificado pelo SDR, distribuído para corretor
+- Campo `contacts.stage`: `'contato'` | `'lead'`
+- Nunca usar "lead" para se referir a um contato não qualificado no código da UI
+
+### Round-robin de SDRs
+- Ao criar um contato, o sistema atribui automaticamente ao próximo SDR da sequência
+- Controlado por `users.sdr_sequence_order` + contagem de assignments por SDR
+- Cria um registro em `sdr_assignments`
+
+### Kanban SDR vs Pipeline Corretor
+- **SDR:** vê apenas seus próprios contatos — colunas: novo | em_contato | aguardando | qualificado | invalido
+- **Corretor:** vê apenas seus leads — colunas: novo | contacted | visiting | proposal | won | lost
+- **Gestor/Admin:** vê todos com filtro por SDR e por corretor
 
 ---
 
@@ -84,6 +105,22 @@ run().catch(console.error)
 
 Rodar com: `npx tsx src/db/alguma-migracao.ts`
 
+### Datas em queries raw SQL
+O `postgres.js` na Vercel não aceita objetos `Date` como parâmetros em `db.execute(sql\`...\`)`. Sempre converter para ISO string:
+
+```ts
+// ❌ falha na Vercel
+const date = new Date()
+await db.execute(sql`SELECT * FROM leads WHERE created_at >= ${date}`)
+
+// ✅ correto
+const dateISO = new Date().toISOString()
+await db.execute(sql`SELECT * FROM leads WHERE created_at >= ${dateISO}`)
+
+// Para Drizzle ORM (não raw): Date funciona normalmente
+db.select().from(leads).where(gte(leads.createdAt, date))
+```
+
 ---
 
 ## Estrutura de pastas
@@ -92,78 +129,90 @@ Rodar com: `npx tsx src/db/alguma-migracao.ts`
 src/
 ├── app/
 │   ├── (app)/               ← Rotas autenticadas (layout com sidebar)
-│   │   ├── dashboard/
-│   │   ├── tenants/         ← CRUD + página de webhook por tenant
-│   │   ├── brokers/         ← CRUD de corretores
-│   │   ├── properties/      ← CRUD de imóveis e empreendimentos
+│   │   ├── dashboard/       ← Dashboard admin com funil global
+│   │   ├── tenants/         ← CRUD empresas + webhook por empresa
+│   │   ├── brokers/         ← CRUD corretores + preferências afinidade
+│   │   ├── properties/      ← CRUD imóveis e empreendimentos
 │   │   ├── sdr/
-│   │   │   ├── queue/       ← Fila de leads do SDR
-│   │   │   └── routing/     ← Tela de distribuição lead → corretores
-│   │   └── pipeline/        ← Kanban para corretores
+│   │   │   ├── queue/       ← Kanban SDR (contatos por atendente)
+│   │   │   ├── routing/     ← Tela de distribuição lead → corretores
+│   │   │   └── dashboard/   ← Dashboard SDR com SLA e performance
+│   │   ├── pipeline/        ← Kanban vendas para corretores
+│   │   ├── reports/         ← Exportação CSV
+│   │   └── tenant/          ← Painel da empresa parceira
 │   ├── api/
-│   │   └── leads/capture/   ← Webhook Meta Lead Ads
+│   │   ├── leads/capture/   ← Webhook Meta Lead Ads
+│   │   └── reports/         ← Endpoints CSV
 │   ├── auth/
 │   │   ├── callback/        ← OAuth callback Supabase
 │   │   └── signout/         ← Logout
 │   ├── actions/             ← Server Actions
-│   │   ├── tenants.ts
+│   │   ├── tenants.ts       ← CRUD empresas + gerar/revogar webhook token
 │   │   ├── properties.ts
 │   │   ├── brokers.ts
-│   │   ├── leads.ts
-│   │   ├── routing.ts
-│   │   └── pipeline.ts
+│   │   ├── leads.ts         ← Ações de qualificação do SDR
+│   │   ├── routing.ts       ← Distribuição lead → corretor + email
+│   │   └── pipeline.ts      ← Mover kanban + registrar atividade
 │   └── login/
 ├── components/
-│   ├── ui/                  ← shadcn/ui + componentes customizados
+│   ├── ui/
 │   │   └── back-button.tsx  ← Client component para navegação back
 │   ├── layout/
 │   │   └── app-sidebar.tsx  ← Sidebar com nav por role
 │   ├── tenants/
-│   │   └── tenant-form.tsx
 │   └── properties/
-│       └── property-form.tsx
 ├── db/
 │   ├── index.ts             ← Instância Drizzle (singleton)
 │   ├── schema/              ← Tabelas Drizzle
-│   │   ├── tenants.ts
-│   │   ├── users.ts
-│   │   ├── properties.ts
-│   │   ├── leads.ts
-│   │   └── brokers.ts
-│   └── seed.ts              ← Criar usuário admin inicial
+│   │   ├── tenants.ts       ← companies/tenants
+│   │   ├── users.ts         ← users com sdr_sequence_order
+│   │   ├── properties.ts    ← properties + developments
+│   │   ├── leads.ts         ← contacts + sdr_assignments + lead_assignments + activities
+│   │   └── brokers.ts       ← broker_preferences
+│   └── seed.ts              ← Admin inicial
 ├── lib/
 │   ├── auth.ts              ← requireAuth, requireRole, getCurrentUser
 │   ├── navigation.ts        ← Itens de menu por role
-│   ├── routing-engine.ts    ← Engine de score de afinidade SDR→Corretor
+│   ├── routing-engine.ts    ← Engine de score de afinidade
+│   ├── email.ts             ← Templates Resend
 │   └── supabase/
-│       ├── client.ts        ← Browser client
-│       ├── server.ts        ← Server client (cookies)
-│       └── middleware.ts    ← updateSession para o proxy
-└── proxy.ts                 ← Auth middleware (Next.js 16: proxy.ts)
+│       ├── client.ts
+│       ├── server.ts
+│       └── middleware.ts
+└── proxy.ts                 ← Auth middleware (Next.js 16)
 ```
 
 ---
 
-## Banco de dados — tabelas
+## Banco de dados — tabelas v2.0
 
 ```
-tenants              id, name, type, slug, webhook_token
-users                id (= auth.uid), email, name, role, tenant_id
-properties           id, tenant_id, type, address, neighborhood, city, price, area_m2, ...
-developments         id, tenant_id, name, address, city, min_price, max_price, ...
-leads                id, name, phone, email, source_property_id, origin, status, quality_score, sdr_id, ...
-lead_assignments     id, lead_id, broker_id, assigned_by_sdr_id, status, loss_reason
+companies            id, name, type, slug, webhook_token
+users                id (= auth.uid), email, name, role, company_id, sdr_sequence_order
+properties           id, company_id, type, address, neighborhood, city, price, area_m2, ...
+developments         id, company_id, name, address, city, min_price, max_price, ...
+leads (contacts)     id, name, phone, email, company_id, stage, origin, status,
+                     source_property_id, campaign_id, ad_name, adset_name, form_name,
+                     tenant_id, quality_score, sdr_id, ...
+sdr_assignments      id, contact_id, sdr_id, assigned_at, status, qualified_at
+contact_messages     id, contact_id, sdr_id, channel, direction, content, sent_at
+lead_assignments     id, contact_id (lead), broker_id, assigned_by_sdr_id, status, loss_reason
 lead_activities      id, lead_assignment_id, user_id, type, notes
 broker_preferences   id, broker_id, cities[], neighborhoods[], min_price, max_price, property_types[], creci
+company_channels     id, company_id, channel_type, is_active, config jsonb,
+                     welcome_message, business_hours jsonb, after_hours_message, keywords[]
 ```
 
 ### Enums
-- `tenant_type`: imobiliaria | incorporadora | construtora | corretor
+- `company_type`: imobiliaria | incorporadora | construtora | corretor
 - `user_role`: admin_placego | sdr | corretor | admin_tenant | corretor_tenant
-- `lead_status`: new | waiting | qualified | invalid | duplicate
-- `lead_origin`: meta_ads | lp | manual | portal
+- `contact_stage`: contato | lead
+- `contact_origin`: meta_leadgen | meta_dm_instagram | meta_dm_facebook | meta_comment | whatsapp | email | lp | indicacao | manual | portal
+- `sdr_assignment_status`: novo | em_contato | aguardando | qualificado | invalido
 - `assignment_status`: new | contacted | visiting | proposal | won | lost
 - `activity_type`: call | whatsapp | email | visit | note
+- `message_channel`: whatsapp | instagram_dm | facebook_dm | email | comment
+- `message_direction`: in | out
 - `property_type`: apartamento | casa | comercial | terreno | cobertura | studio
 - `property_status`: ativo | vendido | suspenso
 
@@ -173,22 +222,24 @@ broker_preferences   id, broker_id, cities[], neighborhoods[], min_price, max_pr
 
 | Role | Acesso |
 |---|---|
-| `admin_placego` | Tudo — configurações, tenants, relatórios globais |
-| `sdr` | Fila de leads, routing, visualização de corretores |
-| `corretor` | Pipeline próprio, meus leads |
-| `admin_tenant` | Painel do tenant (leads, imóveis, corretores vinculados) |
-| `corretor_tenant` | Pipeline próprio (leads recebidos via SDR) |
+| `admin_placego` | Tudo — configura sistema, cadastra contatos, vê todos os SDRs/corretores |
+| `sdr` | Kanban próprio de contatos, atendimento, routing para corretores |
+| `corretor` | Pipeline próprio (leads recebidos) |
+| `admin_tenant` | Painel da empresa (leads, imóveis, corretores vinculados) |
+| `corretor_tenant` | Pipeline próprio (leads via SDR) |
 
 ---
 
 ## Webhook Meta Lead Ads
 
-Endpoint: `POST /api/leads/capture?token=<webhook_token_do_tenant>`
+App: **PlaceGo CRM** (App ID: `1689147582125041`)  
+Endpoint: `POST /api/leads/capture?token=<webhook_token_da_empresa>`
 
-- Token gerado por tenant em **Tenants → Webhook**
+- Token único por empresa em **Empresas → Webhook**
 - O mesmo token serve como `verify_token` no GET de verificação do Meta
-- Deduplicação automática: mesmo telefone/email nos últimos 30 dias → status `duplicate`
-- Score de qualidade (0–100): nome(+20), telefone(+30), email(+20), campaign_id(+15), utm(+15)
+- Deduplicação: mesmo telefone/email nos últimos 30 dias → não cria duplicado
+- Score (0–100): nome(+20), telefone(+30), email(+20), campaign_id(+15), utm/ad(+15)
+- Round-robin: ao receber contato, atribui automaticamente ao próximo SDR
 
 ---
 
@@ -197,10 +248,11 @@ Endpoint: `POST /api/leads/capture?token=<webhook_token_do_tenant>`
 ```bash
 npm run dev          # Servidor de desenvolvimento
 npm run build        # Build de produção
-npm run db:push      # Aplicar schema no banco (pode falhar — ver seção Drizzle acima)
+npm run db:push      # Aplicar schema (pode falhar com RLS — ver seção Drizzle)
 npm run db:generate  # Gerar migrations
-npm run db:studio    # Drizzle Studio (visualização do banco)
+npm run db:studio    # Drizzle Studio
 npm run db:seed      # Criar usuário admin inicial
+npm run db:seed-demo # Popular com dados de teste
 ```
 
 ---
@@ -210,12 +262,13 @@ npm run db:seed      # Criar usuário admin inicial
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=        # Necessário para db:seed e criação de usuários
-DATABASE_URL=                      # Usar Transaction Pooler (porta 6543), não conexão direta
+SUPABASE_SERVICE_ROLE_KEY=        # Para db:seed e criação de usuários
+DATABASE_URL=                      # Transaction Pooler porta 6543
 RESEND_API_KEY=
-META_WEBHOOK_VERIFY_TOKEN=         # Token global PlaceGo (fallback sem tenant)
-NEXT_PUBLIC_APP_URL=
+META_WEBHOOK_VERIFY_TOKEN=         # Token global fallback
+NEXT_PUBLIC_APP_URL=               # https://placego-crm.vercel.app (homolog)
+                                   # https://crm.placego.com.br (produção)
 ```
 
-> **DATABASE_URL:** usar o **Transaction Pooler** do Supabase (`aws-*.pooler.supabase.com:6543`).
-> A conexão direta (`db.*.supabase.co:5432`) não funciona em redes IPv4-only.
+> **DATABASE_URL:** usar Transaction Pooler (`aws-*.pooler.supabase.com:6543`).
+> Conexão direta (`db.*.supabase.co:5432`) não funciona em redes IPv4-only.
