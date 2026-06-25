@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, properties, tenants } from "@/db/schema";
 import { eq, and, gte, or } from "drizzle-orm";
+import { assignContactToNextSdr } from "@/lib/round-robin";
 
 // Verificação do webhook Meta (GET) — por token de tenant
 export async function GET(request: Request) {
@@ -110,13 +111,14 @@ export async function POST(request: Request) {
           }
         }
 
-        await db.insert(leads).values({
+        const [contact] = await db.insert(leads).values({
           name,
           phone,
           email,
           tenantId,
           sourcePropertyId,
-          origin: "meta_ads",
+          stage: "contato",
+          origin: "meta_leadgen",
           campaignId: campaignId ?? adId,
           adName,
           adsetName,
@@ -126,7 +128,12 @@ export async function POST(request: Request) {
           utmCampaign: value.utm_campaign ?? null,
           status: duplicate ? "duplicate" : "new",
           qualityScore: score,
-        });
+        }).returning();
+
+        // Round-robin: só atribui ao SDR se não for duplicado
+        if (!duplicate && contact) {
+          await assignContactToNextSdr(contact.id);
+        }
       }
     }
 

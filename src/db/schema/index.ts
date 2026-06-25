@@ -3,3 +3,4 @@ export * from "./users";
 export * from "./properties";
 export * from "./leads";
 export * from "./brokers";
+export * from "./channels";

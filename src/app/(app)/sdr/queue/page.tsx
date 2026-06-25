@@ -1,198 +1,222 @@
 import { db } from "@/db";
-import { leads, properties, developments, tenants } from "@/db/schema";
+import { leads, sdrAssignments, properties, tenants, users } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
-import { LeadQueueActions } from "./lead-queue-actions";
+import { SdrQueueActions } from "./sdr-queue-actions";
 import { QueueFilters } from "./queue-filters";
-import { AddLeadButton } from "./add-lead-button";
+import { AddContactButton } from "./add-contact-button";
 import { ScoreBadge } from "./score-badge";
 
 const ORIGIN_LABELS: Record<string, string> = {
+  meta_leadgen: "Lead Ads",
   meta_ads: "Meta Ads",
+  meta_dm_instagram: "Instagram DM",
+  meta_dm_facebook: "Facebook DM",
+  meta_comment: "Comentário",
+  whatsapp: "WhatsApp",
+  email: "Email",
   lp: "Landing Page",
+  indicacao: "Indicação",
   manual: "Manual",
   portal: "Portal",
 };
 
 const ORIGIN_COLORS: Record<string, string> = {
+  meta_leadgen: "bg-blue-500/10 text-blue-700 border-blue-200",
   meta_ads: "bg-blue-500/10 text-blue-700 border-blue-200",
-  lp: "bg-purple-500/10 text-purple-700 border-purple-200",
+  meta_dm_instagram: "bg-pink-500/10 text-pink-700 border-pink-200",
+  meta_dm_facebook: "bg-indigo-500/10 text-indigo-700 border-indigo-200",
+  meta_comment: "bg-purple-500/10 text-purple-700 border-purple-200",
+  whatsapp: "bg-green-500/10 text-green-700 border-green-200",
+  email: "bg-orange-500/10 text-orange-700 border-orange-200",
+  lp: "bg-cyan-500/10 text-cyan-700 border-cyan-200",
+  indicacao: "bg-yellow-500/10 text-yellow-700 border-yellow-200",
   manual: "bg-gray-500/10 text-gray-700 border-gray-200",
-  portal: "bg-orange-500/10 text-orange-700 border-orange-200",
+  portal: "bg-teal-500/10 text-teal-700 border-teal-200",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  new: "Novos",
-  waiting: "Aguardando",
-  qualified: "Qualificados",
-  invalid: "Inválidos",
-  duplicate: "Duplicados",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-500/10 text-blue-700 border-blue-200",
-  waiting: "bg-yellow-500/10 text-yellow-700 border-yellow-200",
-  qualified: "bg-green-500/10 text-green-700 border-green-200",
-  invalid: "bg-red-500/10 text-red-700 border-red-200",
-  duplicate: "bg-gray-500/10 text-gray-600 border-gray-200",
-};
-
-const STATUS_ORDER = ["new", "waiting", "qualified", "invalid", "duplicate"];
+const STATUS_COLUMNS = [
+  { id: "novo", label: "Novos", color: "text-blue-600", dot: "bg-blue-500" },
+  { id: "em_contato", label: "Em contato", color: "text-yellow-600", dot: "bg-yellow-500" },
+  { id: "aguardando", label: "Aguardando", color: "text-orange-500", dot: "bg-orange-400" },
+  { id: "qualificado", label: "Qualificados", color: "text-green-600", dot: "bg-green-500" },
+  { id: "invalido", label: "Inválidos", color: "text-red-500", dot: "bg-red-400" },
+];
 
 export default async function SDRQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; origin?: string; tenant?: string }>;
+  searchParams: Promise<{ status?: string; origin?: string; tenant?: string; sdr?: string }>;
 }) {
-  await requireRole(["sdr", "admin_placego"]);
-  const { status, origin, tenant: tenantFilter } = await searchParams;
+  const user = await requireRole(["sdr", "admin_placego"]);
+  const { status, origin, tenant: tenantFilter, sdr: sdrFilter } = await searchParams;
 
-  // Buscar todos os leads ativos (todos os status)
-  const allRows = await db
+  const isAdmin = user.role === "admin_placego";
+  const activeStatus = status ?? "novo";
+
+  // SDR vê apenas seus assignments; admin pode ver todos ou filtrar por SDR
+  const targetSdrId = isAdmin ? (sdrFilter ?? null) : user.id;
+
+  // Buscar assignments com dados do contato
+  const rows = await db
     .select({
-      lead: leads,
+      assignment: sdrAssignments,
+      contact: leads,
       propertyAddress: properties.address,
       propertyNeighborhood: properties.neighborhood,
-      developmentName: developments.name,
       tenantName: tenants.name,
+      sdrName: users.name,
     })
-    .from(leads)
+    .from(sdrAssignments)
+    .innerJoin(leads, eq(sdrAssignments.contactId, leads.id))
     .leftJoin(properties, eq(leads.sourcePropertyId, properties.id))
-    .leftJoin(developments, eq(leads.sourceDevelopmentId, developments.id))
     .leftJoin(tenants, eq(leads.tenantId, tenants.id))
+    .leftJoin(users, eq(sdrAssignments.sdrId, users.id))
+    .where(
+      targetSdrId
+        ? eq(sdrAssignments.sdrId, targetSdrId)
+        : undefined
+    )
     .orderBy(desc(leads.createdAt));
 
-  // Contadores por status (para os pills do kanban)
+  // Contadores por status
   const counts: Record<string, number> = {};
-  for (const s of STATUS_ORDER) {
-    counts[s] = allRows.filter((r) => r.lead.status === s).length;
+  for (const col of STATUS_COLUMNS) {
+    counts[col.id] = rows.filter((r) => r.assignment.status === col.id).length;
   }
 
   // Filtrar para exibição
-  const activeStatus = status ?? "new";
-  const filtered = allRows.filter((r) => {
-    if (r.lead.status !== activeStatus) return false;
-    if (origin && r.lead.origin !== origin) return false;
-    if (tenantFilter && r.lead.tenantId !== tenantFilter) return false;
+  const filtered = rows.filter((r) => {
+    if (r.assignment.status !== activeStatus) return false;
+    if (origin && r.contact.origin !== origin) return false;
+    if (tenantFilter && r.contact.tenantId !== tenantFilter) return false;
     return true;
   });
 
-  // Lista de empresas para filtro
-  const tenantList = await db.select({ id: tenants.id, name: tenants.name }).from(tenants);
+  // Lista de empresas e SDRs para filtros
+  const [tenantList, sdrList] = await Promise.all([
+    db.select({ id: tenants.id, name: tenants.name }).from(tenants),
+    isAdmin
+      ? db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "sdr"))
+      : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Fila SDR</h1>
-          <p className="text-muted-foreground text-sm">Validação e distribuição de leads</p>
+          <h1 className="text-2xl font-bold">
+            {isAdmin ? "Fila SDR — Visão geral" : "Minha fila"}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {isAdmin
+              ? "Todos os contatos de todos os SDRs"
+              : `${counts[activeStatus] ?? 0} contatos em "${STATUS_COLUMNS.find((c) => c.id === activeStatus)?.label}"`}
+          </p>
         </div>
-        <AddLeadButton />
+        {isAdmin && <AddContactButton tenants={tenantList} />}
       </div>
 
       {/* Kanban de status — contadores clicáveis */}
       <div className="grid grid-cols-5 gap-2">
-        {STATUS_ORDER.map((s) => (
+        {STATUS_COLUMNS.map((col) => (
           <a
-            key={s}
-            href={`/sdr/queue?status=${s}${origin ? `&origin=${origin}` : ""}${tenantFilter ? `&tenant=${tenantFilter}` : ""}`}
+            key={col.id}
+            href={`/sdr/queue?status=${col.id}${origin ? `&origin=${origin}` : ""}${tenantFilter ? `&tenant=${tenantFilter}` : ""}${sdrFilter ? `&sdr=${sdrFilter}` : ""}`}
             className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all cursor-pointer hover:shadow-sm ${
-              activeStatus === s
+              activeStatus === col.id
                 ? "border-primary bg-primary/5 shadow-sm"
                 : "border-border bg-background hover:bg-muted/40"
             }`}
           >
-            <span className={`text-2xl font-bold ${
-              activeStatus === s ? "text-primary" :
-              s === "new" ? "text-blue-600" :
-              s === "waiting" ? "text-yellow-600" :
-              s === "qualified" ? "text-green-600" :
-              s === "invalid" ? "text-red-500" :
-              "text-gray-500"
-            }`}>
-              {counts[s]}
+            <span className={`text-2xl font-bold ${activeStatus === col.id ? "text-primary" : col.color}`}>
+              {counts[col.id] ?? 0}
             </span>
-            <span className="text-xs text-muted-foreground font-medium text-center leading-tight">
-              {STATUS_LABELS[s]}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
+              <span className="text-xs text-muted-foreground font-medium text-center leading-tight">
+                {col.label}
+              </span>
+            </div>
           </a>
         ))}
       </div>
 
-      {/* Filtros secundários */}
+      {/* Filtros */}
       <QueueFilters
         currentStatus={activeStatus}
         currentOrigin={origin}
         currentTenant={tenantFilter}
+        currentSdr={sdrFilter}
         tenants={tenantList}
+        sdrs={sdrList}
+        isAdmin={isAdmin}
       />
 
-      {/* Lista de leads */}
+      {/* Lista de contatos */}
       <div className="space-y-2">
         {filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground border rounded-lg bg-muted/20">
-            <p className="font-medium">Nenhum lead em "{STATUS_LABELS[activeStatus]}"</p>
-            <p className="text-sm mt-1">Tente outro filtro ou aguarde novos leads chegarem.</p>
+            <p className="font-medium">
+              Nenhum contato em "{STATUS_COLUMNS.find((c) => c.id === activeStatus)?.label}"
+            </p>
+            <p className="text-sm mt-1">Tente outro filtro ou aguarde novos contatos.</p>
           </div>
         )}
 
-        {filtered.map(({ lead, propertyAddress, propertyNeighborhood, developmentName, tenantName }) => {
-          const source = developmentName
-            ? developmentName
-            : propertyAddress
+        {filtered.map(({ assignment, contact, propertyAddress, propertyNeighborhood, tenantName, sdrName }) => {
+          const source = propertyAddress
             ? `${propertyAddress}${propertyNeighborhood ? ` — ${propertyNeighborhood}` : ""}`
             : null;
 
-          const age = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 60000);
+          const age = Math.floor((Date.now() - new Date(contact.createdAt).getTime()) / 60000);
           const ageLabel =
             age < 60 ? `${age}min` : age < 1440 ? `${Math.floor(age / 60)}h` : `${Math.floor(age / 1440)}d`;
 
           return (
             <div
-              key={lead.id}
+              key={assignment.id}
               className="flex items-start gap-3 p-4 bg-background border rounded-xl hover:shadow-sm transition-all"
             >
-              {/* Score com tooltip */}
-              <ScoreBadge score={lead.qualityScore ?? 0} />
+              {/* Score */}
+              <ScoreBadge score={contact.qualityScore ?? 0} />
 
-              {/* Info principal */}
+              {/* Info */}
               <div className="flex-1 min-w-0 space-y-1.5">
-                {/* Linha 1: nome + origem */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold">{lead.name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ORIGIN_COLORS[lead.origin] ?? ORIGIN_COLORS.manual}`}>
-                    {ORIGIN_LABELS[lead.origin] ?? lead.origin}
+                  <span className="font-semibold">{contact.name}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ORIGIN_COLORS[contact.origin] ?? ORIGIN_COLORS.manual}`}>
+                    {ORIGIN_LABELS[contact.origin] ?? contact.origin}
                   </span>
+                  {isAdmin && sdrName && (
+                    <Badge variant="outline" className="text-xs">SDR: {sdrName}</Badge>
+                  )}
                 </div>
 
-                {/* Linha 2: contato */}
                 <div className="flex gap-3 text-sm text-muted-foreground flex-wrap">
-                  <span className="font-mono">{lead.phone}</span>
-                  {lead.email && <span>{lead.email}</span>}
+                  <span className="font-mono">{contact.phone}</span>
+                  {contact.email && <span>{contact.email}</span>}
                 </div>
 
-                {/* Linha 3: empresa, campanha, imóvel */}
                 <div className="flex gap-2 flex-wrap items-center">
                   {tenantName && (
-                    <Badge variant="secondary" className="text-xs">
-                      🏢 {tenantName}
-                    </Badge>
+                    <Badge variant="secondary" className="text-xs">🏢 {tenantName}</Badge>
                   )}
-                  {(lead.adName ?? lead.utmCampaign ?? lead.campaignId) && (
+                  {(contact.adName ?? contact.utmCampaign ?? contact.campaignId) && (
                     <Badge variant="outline" className="text-xs">
-                      📣 {lead.adName ?? lead.utmCampaign ?? `ID: ${lead.campaignId}`}
+                      📣 {contact.adName ?? contact.utmCampaign ?? `ID: ${contact.campaignId}`}
                     </Badge>
-                  )}
-                  {lead.adsetName && (
-                    <span className="text-xs text-muted-foreground">
-                      {lead.adsetName}
-                    </span>
                   )}
                   {source && (
-                    <span className="text-xs text-muted-foreground truncate max-w-[220px]">
+                    <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                       📍 {source}
+                    </span>
+                  )}
+                  {contact.notes && (
+                    <span className="text-xs text-muted-foreground italic truncate max-w-[200px]">
+                      💬 {contact.notes}
                     </span>
                   )}
                 </div>
@@ -204,7 +228,11 @@ export default async function SDRQueuePage({
               </span>
 
               {/* Ações */}
-              <LeadQueueActions leadId={lead.id} currentStatus={lead.status} />
+              <SdrQueueActions
+                assignmentId={assignment.id}
+                contactId={contact.id}
+                currentStatus={assignment.status}
+              />
             </div>
           );
         })}
