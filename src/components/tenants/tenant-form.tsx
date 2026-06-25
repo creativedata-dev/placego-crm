@@ -78,7 +78,7 @@ export function TenantForm({ action, defaultValues }: TenantFormProps) {
 
       <div className="flex gap-3 pt-2">
         <Button type="submit">
-          {defaultValues?.id ? "Salvar alterações" : "Criar tenant"}
+          {defaultValues?.id ? "Salvar alterações" : "Cadastrar empresa"}
         </Button>
         <Button type="button" variant="outline" onClick={() => history.back()}>
           Cancelar

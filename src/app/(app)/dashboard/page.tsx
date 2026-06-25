@@ -156,13 +156,13 @@ export default async function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Volume por tenant</CardTitle>
+          <CardTitle className="text-base">Volume por empresa</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tenant</TableHead>
+                <TableHead>Empresa</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-center">Leads</TableHead>
                 <TableHead className="text-center">Qualificados</TableHead>

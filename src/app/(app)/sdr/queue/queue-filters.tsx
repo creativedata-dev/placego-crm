@@ -77,7 +77,7 @@ export function QueueFilters({ currentStatus, currentOrigin, currentTenant, tena
               onClick={() => update("tenant", "")}
               className={`${pillBase} ${!currentTenant ? "bg-secondary text-secondary-foreground border-secondary" : pillInactive}`}
             >
-              Todos BMs
+              Todas empresas
             </button>
             {tenants.map((t) => (
               <button

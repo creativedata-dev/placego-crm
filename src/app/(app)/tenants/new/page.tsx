@@ -8,8 +8,8 @@ export default async function NewTenantPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Novo Tenant</h1>
-        <p className="text-muted-foreground text-sm">Cadastrar parceiro no sistema</p>
+        <h1 className="text-2xl font-bold">Nova Empresa</h1>
+        <p className="text-muted-foreground text-sm">Cadastrar empresa parceira no sistema</p>
       </div>
       <TenantForm action={createTenant} />
     </div>

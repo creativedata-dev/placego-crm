@@ -24,7 +24,7 @@ export default async function TenantWebhookPage({
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <p className="text-sm text-muted-foreground">Tenant</p>
+        <p className="text-sm text-muted-foreground">Empresa</p>
         <h1 className="text-2xl font-bold">{tenant.name}</h1>
       </div>
 

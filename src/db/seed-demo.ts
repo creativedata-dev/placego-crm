@@ -211,20 +211,15 @@ async function seed() {
 
   // 6. Assignments (leads qualificados → corretores)
   console.log("\n🔀 Criando distribuições (assignments)...");
-  const qualifiedLeads = await db.select().from(schema.leads)
-    .where(schema.leads.status.eq ? undefined : undefined as any)
-    .limit(100);
-
-  // Buscar leads qualificados diretamente
   const ql = await sql`SELECT id, tenant_id FROM leads WHERE status = 'qualified' LIMIT 20`;
 
-  const assignmentStatuses = ["new", "contacted", "contacted", "visiting", "proposal", "won", "lost"] as const;
+  const assignmentStatuses = ["new", "contacted", "contacted", "visiting", "proposal", "won", "lost"];
 
   for (const lead of ql) {
     const numBrokers = rand(1, 2);
     const shuffled = [...brokerIds].sort(() => Math.random() - 0.5).slice(0, numBrokers);
     for (const broker of shuffled) {
-      const aStatus = pick(assignmentStatuses);
+      const aStatus = pick(assignmentStatuses) as "new" | "contacted" | "visiting" | "proposal" | "won" | "lost";
       const [assignment] = await db.insert(schema.leadAssignments).values({
         leadId: lead.id,
         brokerId: broker.id,

@@ -31,14 +31,14 @@ export default async function TenantsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Tenants</h1>
+          <h1 className="text-2xl font-bold">Empresas</h1>
           <p className="text-muted-foreground text-sm">
             Imobiliárias, incorporadoras e corretores parceiros
           </p>
         </div>
         <Button nativeButton={false} render={<Link href="/tenants/new" />}>
           <Plus className="h-4 w-4 mr-2" />
-          Novo Tenant
+          Nova Empresa
         </Button>
       </div>
 
@@ -57,7 +57,7 @@ export default async function TenantsPage() {
             {list.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  Nenhum tenant cadastrado.
+                  Nenhuma empresa cadastrada.
                 </TableCell>
               </TableRow>
             )}

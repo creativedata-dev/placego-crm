@@ -10,7 +10,7 @@ export const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin_placego: [
     { title: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
     { title: "Fila SDR", href: "/sdr/queue", icon: "ListChecks" },
-    { title: "Tenants", href: "/tenants", icon: "Building2" },
+    { title: "Empresas", href: "/tenants", icon: "Building2" },
     { title: "Corretores", href: "/brokers", icon: "UserCheck" },
     { title: "Imóveis", href: "/properties", icon: "Home" },
     { title: "Pipeline", href: "/pipeline", icon: "Kanban" },
