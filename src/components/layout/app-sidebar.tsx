@@ -29,8 +29,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { NAV_BY_ROLE, type NavItem } from "@/lib/navigation";
-import type { UserRole, ROLE_LABELS } from "@/lib/auth";
+import type { NavItem } from "@/lib/navigation";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -51,12 +50,11 @@ interface AppSidebarProps {
     email: string;
     role: string;
   };
+  navItems: NavItem[];
 }
 
-export function AppSidebar({ user }: AppSidebarProps) {
+export function AppSidebar({ user, navItems }: AppSidebarProps) {
   const pathname = usePathname();
-  const navItems: NavItem[] =
-    NAV_BY_ROLE[user.role as UserRole] ?? [];
 
   const initials = user.name
     .split(" ")
