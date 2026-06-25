@@ -52,36 +52,62 @@ Tenants são os parceiros da PlaceGo: imobiliárias, incorporadoras, construtora
 
 ---
 
-## 3. Configurar o webhook Meta por tenant
+## 3. Configurar o webhook Meta por empresa
 
-Cada tenant tem um Business Manager (BM) diferente no Meta Ads. Para que os leads do Meta cheguem automaticamente ao CRM, é preciso configurar o webhook em cada BM.
+Cada empresa parceira tem um Business Manager (BM) diferente no Meta Ads. O PlaceGo CRM usa um **único app Meta** (PlaceGo CRM — App ID: `1689147582125041`) que recebe leads de todas as empresas. Para cada empresa, um token único identifica de qual BM o lead veio.
+
+> **Captura de leads:** o webhook captura leads de campanhas **Facebook e Instagram** (Lead Ads e Dark Posts). Ambos chegam pelo mesmo evento `leadgen` — o campo `platform` no payload indica a origem.
 
 ### 3.1 Gerar o token no CRM
 
-1. Menu → **Tenants**
-2. Clique em **Webhook** na linha do tenant desejado
+1. Menu → **Empresas**
+2. Clique em **Webhook** na linha da empresa desejada
 3. Clique em **Gerar token de webhook**
 4. Copie a **URL do Webhook** e o **Token de verificação** (botões de cópia ao lado de cada campo)
 
-### 3.2 Configurar no Meta Business Manager
+### 3.2 Configurar no Facebook for Developers
 
-1. Acesse [business.facebook.com](https://business.facebook.com) com a conta do tenant
-2. Vá em **Configurações do negócio** → **Integrações** → **Webhooks**
-3. Clique em **Adicionar** → selecione o objeto **Lead**
+O webhook é configurado no app **PlaceGo CRM** em [developers.facebook.com](https://developers.facebook.com/apps/1689147582125041):
+
+1. Acesse o app PlaceGo CRM → **Casos de uso** → **Personalizar**
+2. No menu lateral clique em **Webhooks**
+3. Em **Selecione o produto** escolha **Page**
 4. Preencha os campos:
-   - **URL do Callback:** cole a URL copiada do CRM
-   - **Token de verificação:** cole o token copiado do CRM
+   - **URL de callback:** cole a URL copiada do CRM
+   - **Verificar token:** cole o token copiado do CRM
 5. Clique em **Verificar e salvar**
-6. Na lista de campos, marque **leadgen** e salve
-7. Associe o webhook à(s) página(s) de Facebook do tenant
+6. Role a página para baixo e assine o campo **leadgen**
+7. Associe a página do Facebook da empresa ao app
 
-### 3.3 Testar a integração
+> **Importante — modo desenvolvimento vs produção:**
+> Enquanto o app não for publicado, só recebe webhooks de **teste enviados pelo painel do Meta**. Para receber leads reais de produção, o app precisa ser publicado em **Publicar** no menu lateral do app.
 
-No Meta Business Manager, use a ferramenta **Teste de webhook** para enviar um lead fictício. Após alguns segundos, o lead deve aparecer na **Fila SDR** do CRM.
+### 3.3 Migração de URL (ao trocar de homologação para produção)
 
-### 3.4 Regenerar ou revogar token
+Quando o domínio mudar de `placego-crm.vercel.app` para `crm.placego.com.br`, a URL do webhook muda. Para cada empresa:
 
-- **Regenerar:** gera um novo token (o anterior para de funcionar). É necessário atualizar o token no BM do tenant.
+1. No CRM: Menu → **Empresas** → **Webhook** → **Regenerar token**
+2. No app Meta (developers.facebook.com/apps/1689147582125041):
+   - Vá em **Casos de uso** → **Personalizar** → **Webhooks**
+   - Cole a nova URL e o novo token
+   - Clique em **Verificar e salvar**
+
+> O token muda ao regenerar — a URL antiga para de funcionar imediatamente. Não há período de transição simultânea.
+
+### 3.4 Testar a integração
+
+No painel do app Meta → **Casos de uso** → **Personalizar** → **Ferramentas**, use o **Testador de webhook** para enviar um lead fictício. Após alguns segundos, o lead deve aparecer na **Fila SDR** do CRM.
+
+Alternativa via curl (mais rápido para testes):
+```bash
+curl -X POST "https://placego-crm.vercel.app/api/leads/capture?token=SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Lead Teste","phone":"11999990001","email":"teste@email.com","ad_name":"Campanha Teste"}'
+```
+
+### 3.5 Regenerar ou revogar token
+
+- **Regenerar:** gera um novo token (o anterior para de funcionar imediatamente). Necessário atualizar no app Meta também.
 - **Revogar:** desativa a integração completamente. Novos leads do Meta serão rejeitados até que um novo token seja gerado.
 
 ---
