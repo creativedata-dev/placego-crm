@@ -18,7 +18,9 @@
 8. [Pipeline do corretor](#8-pipeline-do-corretor)
 9. [Painel do Tenant](#9-painel-do-tenant)
 10. [Adicionar novos usuários](#10-adicionar-novos-usuários)
-11. [Perguntas frequentes](#11-perguntas-frequentes)
+11. [Deploy e ambientes](#11-deploy-e-ambientes)
+12. [Migração para domínio definitivo](#12-migração-para-domínio-definitivo)
+13. [Perguntas frequentes](#13-perguntas-frequentes)
 
 ---
 
@@ -271,3 +273,101 @@ Sim. Na tela de distribuição, selecione quantos corretores desejar. Cada um re
 
 **Como faço para o tenant ver apenas os leads dos imóveis dele?**
 Os leads são vinculados ao imóvel de origem (`source_property_id`). Certifique-se de que os imóveis foram cadastrados com o `tenant_id` correto e que o `external_id` do imóvel corresponde ao ID do anúncio no Meta.
+
+---
+
+## 11. Deploy e ambientes
+
+### Ambientes
+
+| Ambiente | URL | Finalidade |
+|---|---|---|
+| **Homologação** | `https://placego-crm.vercel.app` | Testes, validação de funcionalidades, integração com Meta |
+| **Produção** | `https://crm.placego.com.br` | Uso real — a migrar após homologação |
+
+### Repositório e CI/CD
+
+- **Repositório:** `github.com/creativedata-dev/placego-crm`
+- **Branch principal:** `main`
+- Todo push para `main` dispara deploy automático na Vercel
+- Preview deployments automáticos para Pull Requests
+
+### Variáveis de ambiente na Vercel
+
+Configure em **Vercel → Project → Settings → Environment Variables**:
+
+| Variável | Descrição |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL do projeto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave pública Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave de serviço (nunca expor no frontend) |
+| `DATABASE_URL` | Connection string Transaction Pooler (porta 6543) |
+| `RESEND_API_KEY` | Chave da API Resend para emails |
+| `META_WEBHOOK_VERIFY_TOKEN` | Token global de fallback para webhook Meta |
+| `NEXT_PUBLIC_APP_URL` | URL base do ambiente (`https://placego-crm.vercel.app` em homologação) |
+
+### Configuração do Supabase por ambiente
+
+Em **Supabase → Authentication → URL Configuration**, configure conforme o ambiente ativo:
+
+**Homologação:**
+- Site URL: `https://placego-crm.vercel.app`
+- Redirect URLs: `https://placego-crm.vercel.app/auth/callback`
+
+**Produção (após migração):**
+- Site URL: `https://crm.placego.com.br`
+- Redirect URLs: `https://crm.placego.com.br/auth/callback`
+
+> Mantenha **ambas** as URLs em Redirect URLs durante a transição para não interromper sessões ativas.
+
+---
+
+## 12. Migração para domínio definitivo
+
+Quando a homologação estiver concluída, siga esta sequência para migrar para `crm.placego.com.br`:
+
+### Passo 1 — Configurar domínio na Vercel
+1. Acesse **Vercel → Project → Settings → Domains**
+2. Adicione `crm.placego.com.br`
+3. Configure o DNS conforme instruído pela Vercel (registro CNAME ou A apontando para os servidores deles)
+4. Aguarde a propagação DNS e emissão do certificado SSL (geralmente < 10 minutos)
+
+### Passo 2 — Atualizar variável de ambiente
+1. Em **Vercel → Environment Variables**, altere:
+   - `NEXT_PUBLIC_APP_URL` → `https://crm.placego.com.br`
+2. Faça um novo deploy (Vercel → Deployments → Redeploy)
+
+### Passo 3 — Atualizar Supabase
+1. Acesse **Supabase → Authentication → URL Configuration**
+2. Atualize **Site URL** para `https://crm.placego.com.br`
+3. Em **Redirect URLs**, adicione `https://crm.placego.com.br/auth/callback`
+   - Mantenha também `https://placego-crm.vercel.app/auth/callback` por segurança durante a transição
+
+### Passo 4 — Regenerar tokens de webhook dos tenants
+
+> ⚠️ **Atenção:** os tokens de webhook existentes continuam funcionando, mas a URL base muda. Os tokens gerados durante a homologação apontavam para `placego-crm.vercel.app`. Após a migração, a URL gerada nos novos tokens já usará `crm.placego.com.br` automaticamente.
+
+Para cada tenant com webhook ativo:
+1. Menu → **Tenants → Webhook** do tenant
+2. Clique em **Regenerar token**
+3. Copie a nova URL e atualize no Business Manager do Meta
+
+### Passo 5 — Validar
+- Acesse `https://crm.placego.com.br` e confirme o login
+- Teste o recebimento de um lead via webhook com a nova URL
+- Confirme que os emails de notificação chegam com o link correto
+
+### Checklist de migração
+
+- [ ] DNS configurado e propagado
+- [ ] Certificado SSL emitido pela Vercel
+- [ ] `NEXT_PUBLIC_APP_URL` atualizado e redeploy feito
+- [ ] Supabase Site URL e Redirect URLs atualizados
+- [ ] Login funcionando em `crm.placego.com.br`
+- [ ] Tokens de webhook regenerados para todos os tenants ativos
+- [ ] Meta BM atualizado com novas URLs de webhook
+- [ ] Email de notificação testado com link correto
+
+---
+
+## 13. Perguntas frequentes
