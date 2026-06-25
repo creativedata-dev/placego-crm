@@ -11,6 +11,7 @@ import { FunnelChart } from "./funnel-chart";
 import { redirect } from "next/navigation";
 
 const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
 
 export default async function DashboardPage() {
   const user = await requireAuth();
@@ -52,7 +53,7 @@ export default async function DashboardPage() {
     FROM tenants t
     LEFT JOIN properties p ON p.tenant_id = t.id
     LEFT JOIN leads l ON l.source_property_id = p.id
-      AND l.created_at >= ${thirtyDaysAgo}
+      AND l.created_at >= ${thirtyDaysAgoISO}
     LEFT JOIN lead_assignments la ON la.lead_id = l.id AND la.status = 'won'
     GROUP BY t.id, t.name, t.type
     ORDER BY total_leads DESC
@@ -67,7 +68,7 @@ export default async function DashboardPage() {
       COUNT(CASE WHEN la.status IN ('contacted','visiting','proposal') THEN 1 END) AS in_progress
     FROM users u
     JOIN lead_assignments la ON la.broker_id = u.id
-      AND la.assigned_at >= ${thirtyDaysAgo}
+      AND la.assigned_at >= ${thirtyDaysAgoISO}
     WHERE u.role IN ('corretor', 'corretor_tenant')
     GROUP BY u.id, u.name
     ORDER BY won DESC, total_assigned DESC

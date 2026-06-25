@@ -1,19 +1,19 @@
 import { requireRole } from "@/lib/auth";
 import { db } from "@/db";
-import { leads, leadAssignments, users } from "@/db/schema";
+import { leads, users } from "@/db/schema";
 import { eq, and, gte, sql, count } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
 
 export default async function SDRDashboardPage() {
   const user = await requireRole(["sdr", "admin_placego"]);
 
-  // KPIs do SDR logado (ou global se admin)
   const isMySelf = user.role === "sdr";
   const sdrFilter = isMySelf ? eq(leads.sdrId, user.id) : undefined;
 
@@ -27,29 +27,27 @@ export default async function SDRDashboardPage() {
       ))::int AS avg_qual_time
       FROM leads
       WHERE qualified_at IS NOT NULL
-        AND created_at >= ${thirtyDaysAgo}
+        AND created_at >= ${thirtyDaysAgoISO}
         ${isMySelf ? sql`AND sdr_id = ${user.id}` : sql``}
     `),
   ]);
 
   const avgMinutes = ((avgQualResult as any[])[0] as any)?.avg_qual_time ?? null;
 
-  // SLA por faixa de tempo (tempo até qualificação)
   const slaBreakdown = await db.execute(sql`
     SELECT
-      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 <= 5 THEN 1 END) AS "até 5min",
-      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 BETWEEN 5 AND 30 THEN 1 END) AS "5–30min",
-      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 BETWEEN 30 AND 60 THEN 1 END) AS "30–60min",
-      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 > 60 THEN 1 END) AS "acima 60min"
+      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 <= 5 THEN 1 END) AS ate5min,
+      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 BETWEEN 5 AND 30 THEN 1 END) AS de5a30min,
+      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 BETWEEN 30 AND 60 THEN 1 END) AS de30a60min,
+      COUNT(CASE WHEN EXTRACT(EPOCH FROM (qualified_at - created_at)) / 60 > 60 THEN 1 END) AS acima60min
     FROM leads
     WHERE qualified_at IS NOT NULL
-      AND created_at >= ${thirtyDaysAgo}
+      AND created_at >= ${thirtyDaysAgoISO}
       ${isMySelf ? sql`AND sdr_id = ${user.id}` : sql``}
   `);
 
   const slaRow = (slaBreakdown as any[])[0] as Record<string, number>;
 
-  // Taxa de rejeição (invalid + duplicate / total)
   const rejectionStats = await db.execute(sql`
     SELECT
       COUNT(*) AS total,
@@ -57,22 +55,20 @@ export default async function SDRDashboardPage() {
       COUNT(CASE WHEN status = 'duplicate' THEN 1 END) AS duplicate,
       COUNT(CASE WHEN status = 'qualified' THEN 1 END) AS qualified
     FROM leads
-    WHERE created_at >= ${thirtyDaysAgo}
+    WHERE created_at >= ${thirtyDaysAgoISO}
     ${isMySelf ? sql`AND sdr_id = ${user.id}` : sql``}
   `);
 
   const rej = (rejectionStats as any[])[0] as any;
-  const rejectionRate = rej.total > 0
+  const rejectionRate = rej?.total > 0
     ? Math.round(((Number(rej.invalid) + Number(rej.duplicate)) / Number(rej.total)) * 100)
     : 0;
 
-  // Leads ainda na fila (sem qualificação)
   const [{ inQueue }] = await db
     .select({ inQueue: count() })
     .from(leads)
-    .where(and(eq(leads.status, "new")));
+    .where(eq(leads.status, "new"));
 
-  // Últimas qualificações
   const recentQualified = await db
     .select({ lead: leads, sdrName: users.name })
     .from(leads)
@@ -88,11 +84,13 @@ export default async function SDRDashboardPage() {
   }
 
   const slaItems = [
-    { label: "Até 5 min", value: slaRow?.["até 5min"] ?? 0, color: "text-green-600" },
-    { label: "5 – 30 min", value: slaRow?.["5–30min"] ?? 0, color: "text-yellow-600" },
-    { label: "30 – 60 min", value: slaRow?.["30–60min"] ?? 0, color: "text-orange-500" },
-    { label: "Acima de 60 min", value: slaRow?.["acima 60min"] ?? 0, color: "text-red-500" },
+    { label: "Até 5 min", value: Number(slaRow?.ate5min ?? 0), color: "text-green-600", bg: "#22c55e" },
+    { label: "5 – 30 min", value: Number(slaRow?.de5a30min ?? 0), color: "text-yellow-600", bg: "#eab308" },
+    { label: "30 – 60 min", value: Number(slaRow?.de30a60min ?? 0), color: "text-orange-500", bg: "#f97316" },
+    { label: "Acima de 60 min", value: Number(slaRow?.acima60min ?? 0), color: "text-red-500", bg: "#ef4444" },
   ];
+
+  const slaTotal = slaItems.reduce((acc, s) => acc + s.value, 0);
 
   return (
     <div className="space-y-8">
@@ -103,67 +101,42 @@ export default async function SDRDashboardPage() {
         </p>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-1 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Leads tratados</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 px-4">
-            <p className="text-3xl font-bold">{totalHandled}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Tempo médio de qualif.</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 px-4">
-            <p className="text-3xl font-bold">{formatMinutes(avgMinutes)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Taxa de rejeição</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 px-4">
-            <p className={`text-3xl font-bold ${rejectionRate > 30 ? "text-red-500" : "text-foreground"}`}>
-              {rejectionRate}%
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Na fila agora</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 px-4">
-            <p className={`text-3xl font-bold ${inQueue > 10 ? "text-red-500" : "text-foreground"}`}>
-              {inQueue}
-            </p>
-          </CardContent>
-        </Card>
+        {[
+          { label: "Leads tratados", value: totalHandled, color: "" },
+          { label: "Tempo médio de qualif.", value: formatMinutes(avgMinutes), color: "" },
+          { label: "Taxa de rejeição", value: `${rejectionRate}%`, color: rejectionRate > 30 ? "text-red-500" : "" },
+          { label: "Na fila agora", value: inQueue, color: inQueue > 10 ? "text-red-500" : "" },
+        ].map((kpi) => (
+          <Card key={kpi.label}>
+            <CardHeader className="pb-1 pt-4 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground leading-tight">{kpi.label}</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 px-4">
+              <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* SLA de qualificação */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">SLA de qualificação</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {slaItems.map((s) => {
-              const total = slaItems.reduce((acc, i) => acc + Number(i.value), 0);
-              const pct = total > 0 ? Math.round((Number(s.value) / total) * 100) : 0;
+              const pct = slaTotal > 0 ? Math.round((s.value / slaTotal) * 100) : 0;
               return (
                 <div key={s.label} className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span>{s.label}</span>
-                    <span className={`font-semibold ${s.color}`}>{s.value} <span className="text-muted-foreground font-normal">({pct}%)</span></span>
+                    <span className={`font-semibold ${s.color}`}>
+                      {s.value} <span className="text-muted-foreground font-normal">({pct}%)</span>
+                    </span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: s.color.replace("text-", "").includes("green") ? "#22c55e" : s.color.includes("yellow") ? "#eab308" : s.color.includes("orange") ? "#f97316" : "#ef4444" }}
-                    />
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: s.bg }} />
                   </div>
                 </div>
               );
@@ -171,7 +144,6 @@ export default async function SDRDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Breakdown de status */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Breakdown de leads</CardTitle>
@@ -179,12 +151,12 @@ export default async function SDRDashboardPage() {
           <CardContent>
             <div className="space-y-3">
               {[
-                { label: "Qualificados", value: rej?.qualified ?? 0, color: "bg-green-500" },
-                { label: "Inválidos", value: rej?.invalid ?? 0, color: "bg-red-400" },
-                { label: "Duplicados", value: rej?.duplicate ?? 0, color: "bg-gray-400" },
+                { label: "Qualificados", value: Number(rej?.qualified ?? 0), color: "bg-green-500" },
+                { label: "Inválidos", value: Number(rej?.invalid ?? 0), color: "bg-red-400" },
+                { label: "Duplicados", value: Number(rej?.duplicate ?? 0), color: "bg-gray-400" },
               ].map((item) => {
                 const total = Number(rej?.total ?? 1);
-                const pct = total > 0 ? Math.round((Number(item.value) / total) * 100) : 0;
+                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
                 return (
                   <div key={item.label} className="flex items-center gap-3">
                     <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${item.color}`} />
@@ -199,7 +171,6 @@ export default async function SDRDashboardPage() {
         </Card>
       </div>
 
-      {/* Últimas qualificações */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Últimas qualificações</CardTitle>
