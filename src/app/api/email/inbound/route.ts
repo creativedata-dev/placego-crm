@@ -1,25 +1,30 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, companyChannels, tenants } from "@/db/schema";
-import { eq, and, gte, or } from "drizzle-orm";
+import { leads, companyChannels } from "@/db/schema";
+import { eq, and, gte } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 
-// Resend Inbound envia um POST com os dados do email recebido
+// Webhook do Resend para emails recebidos (evento email.received)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Payload do Resend Inbound
-    const to: string = Array.isArray(body.to) ? body.to[0] : body.to ?? "";
-    const fromEmail: string = body.from ?? "";
-    const fromName: string = body.sender_name ?? fromEmail.split("@")[0];
-    const subject: string = body.subject ?? "";
-    const text: string = body.plain_text ?? body.text ?? "";
+    // Resend envia { type: "email.received", data: { ... } }
+    if (body.type !== "email.received") {
+      return NextResponse.json({ ok: true });
+    }
+
+    const email = body.data ?? body;
+
+    const fromEmail: string = email.from ?? email.sender ?? "";
+    const fromName: string = email.sender_name ?? email.from_name ?? fromEmail.split("@")[0];
+    const toAddress: string = Array.isArray(email.to) ? email.to[0] : email.to ?? "";
+    const subject: string = email.subject ?? "";
+    const text: string = email.plain_text ?? email.text ?? email.body ?? "";
 
     if (!fromEmail) return NextResponse.json({ ok: true });
 
     // Identificar empresa pelo endereço de destino
-    // Busca em company_channels onde config->>'address' = to
     const allEmailChannels = await db
       .select({ companyId: companyChannels.companyId, config: companyChannels.config })
       .from(companyChannels)
@@ -27,10 +32,8 @@ export async function POST(request: Request) {
 
     const matchedChannel = allEmailChannels.find((ch) => {
       const cfg = ch.config as any;
-      return cfg?.address && to.toLowerCase().includes(cfg.address.toLowerCase());
+      return cfg?.address && toAddress.toLowerCase().includes(cfg.address.toLowerCase());
     });
-
-    const tenantId = matchedChannel?.companyId ?? null;
 
     // Deduplicação: mesmo email nos últimos 30 dias
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -44,10 +47,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, duplicate: true });
     }
 
-    // Score: email sempre tem nome + email
     const score = 60 + (fromName && fromName !== fromEmail.split("@")[0] ? 20 : 0);
 
-    // Criar contato
     const [contact] = await db.insert(leads).values({
       name: fromName,
       phone: null,
@@ -55,12 +56,11 @@ export async function POST(request: Request) {
       origin: "email",
       stage: "contato",
       status: "new",
-      tenantId,
+      tenantId: matchedChannel?.companyId ?? null,
       qualityScore: score,
       notes: subject ? `Assunto: ${subject}${text ? `\n\n${text.slice(0, 300)}` : ""}` : null,
     }).returning();
 
-    // Round-robin
     await assignContactToNextSdr(contact.id);
 
     console.log(`[email/inbound] Novo contato: ${fromName} <${fromEmail}>`);
