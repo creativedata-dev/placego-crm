@@ -178,7 +178,7 @@ export default async function SDRQueuePage({
           return (
             <div
               key={assignment.id}
-              className="flex items-start gap-3 p-4 bg-background border rounded-xl hover:shadow-sm transition-all"
+              className="flex items-start gap-3 p-4 bg-background border rounded-xl hover:shadow-sm transition-all group"
             >
               {/* Score */}
               <ScoreBadge score={contact.qualityScore ?? 0} />
@@ -186,7 +186,9 @@ export default async function SDRQueuePage({
               {/* Info */}
               <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold">{contact.name}</span>
+                  <a href={`/sdr/contacts/${contact.id}`} className="font-semibold hover:underline hover:text-primary">
+                    {contact.name}
+                  </a>
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ORIGIN_COLORS[contact.origin] ?? ORIGIN_COLORS.manual}`}>
                     {ORIGIN_LABELS[contact.origin] ?? contact.origin}
                   </span>
