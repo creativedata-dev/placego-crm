@@ -24,30 +24,47 @@ export async function createBroker(formData: FormData) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+  let userId: string;
   const { data: authData, error } = await supabase.auth.admin.createUser({
     email,
     password: Math.random().toString(36).slice(-10),
     email_confirm: true,
   });
 
-  if (error || !authData.user) throw new Error(error?.message ?? "Erro ao criar usuário");
+  if (error) {
+    if (error.message.includes("already been registered") || error.message.includes("already exists")) {
+      // Usuário já existe — busca o ID
+      const { data: list } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+      const existing = list?.users?.find((u) => u.email === email);
+      if (!existing) throw new Error("Usuário já existe mas não foi encontrado");
+      userId = existing.id;
+    } else {
+      throw new Error(error.message);
+    }
+  } else {
+    if (!authData.user) throw new Error("Erro ao criar usuário");
+    userId = authData.user.id;
+  }
 
-  // Inserir na tabela users
+  // Inserir na tabela users (ou atualizar se já existir)
   await db.insert(users).values({
-    id: authData.user.id,
+    id: userId,
     email,
     name,
     role: role as any,
     tenantId: tenantId || null,
     phone,
+  }).onConflictDoUpdate({
+    target: users.id,
+    set: { name, role: role as any, tenantId: tenantId || null, phone, updatedAt: new Date() },
   });
 
   // Inserir preferências do corretor
   if (creci) {
     await db.insert(brokerPreferences).values({
-      brokerId: authData.user.id,
+      brokerId: userId,
       creci,
-    });
+    }).onConflictDoNothing();
   }
 
   revalidatePath("/brokers");
