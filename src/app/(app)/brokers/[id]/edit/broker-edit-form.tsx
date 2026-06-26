@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function BrokerEditForm({ action, broker, prefs, propertyTypes }: Props) {
+  const router = useRouter();
   const [name, setName] = useState(broker.name);
   const [email, setEmail] = useState(broker.email);
   const [phone, setPhone] = useState(broker.phone);
@@ -53,6 +55,7 @@ export function BrokerEditForm({ action, broker, prefs, propertyTypes }: Props) 
     selectedTypes.forEach((t) => fd.append("propertyTypes", t));
     await action(fd);
     setLoading(false);
+    router.push("/brokers");
   }
 
   const inputClass = "w-full h-8 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring disabled:opacity-50";
