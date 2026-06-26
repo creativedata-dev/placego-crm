@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -55,6 +55,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ user, navItems }: AppSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const initials = user.name
     .split(" ")
@@ -87,7 +88,7 @@ export function AppSidebar({ user, navItems }: AppSidebarProps) {
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      render={<Link href={item.href} />}
+                      onClick={() => router.push(item.href)}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.title}</span>
