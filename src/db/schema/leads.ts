@@ -38,7 +38,7 @@ export const messageDirectionEnum = pgEnum("message_direction", ["in", "out"]);
 export const leads = pgTable("leads", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  phone: text("phone").notNull(),
+  phone: text("phone"),
   email: text("email"),
   tenantId: uuid("tenant_id").references(() => tenants.id),
   stage: contactStageEnum("stage").notNull().default("contato"),
