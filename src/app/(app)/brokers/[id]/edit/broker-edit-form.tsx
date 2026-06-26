@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 
 interface Props {
   action: (formData: FormData) => Promise<void>;
-  broker: { name: string; email: string; phone: string };
+  broker: { name: string; email: string; phone: string; isActive: boolean };
   prefs: {
     creci: string;
     cities: string;
@@ -26,6 +26,7 @@ export function BrokerEditForm({ action, broker, prefs, propertyTypes }: Props) 
   const [name, setName] = useState(broker.name);
   const [email, setEmail] = useState(broker.email);
   const [phone, setPhone] = useState(broker.phone);
+  const [isActive, setIsActive] = useState(broker.isActive);
   const [creci, setCreci] = useState(prefs.creci);
   const [cities, setCities] = useState(prefs.cities);
   const [neighborhoods, setNeighborhoods] = useState(prefs.neighborhoods);
@@ -47,6 +48,7 @@ export function BrokerEditForm({ action, broker, prefs, propertyTypes }: Props) 
     fd.set("name", name);
     fd.set("email", email);
     fd.set("phone", phone);
+    fd.set("isActive", isActive ? "true" : "false");
     fd.set("creci", creci);
     fd.set("cities", cities);
     fd.set("neighborhoods", neighborhoods);
@@ -78,6 +80,14 @@ export function BrokerEditForm({ action, broker, prefs, propertyTypes }: Props) 
           <Label htmlFor="phone">Telefone / WhatsApp</Label>
           <input id="phone" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(16) 99999-9999" className={inputClass} />
           <p className="text-xs text-muted-foreground">Usado para notificações de novos leads via WhatsApp</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Checkbox id="isActive" checked={isActive} onCheckedChange={(v) => setIsActive(!!v)} />
+          <div>
+            <Label htmlFor="isActive" className="cursor-pointer font-medium">Corretor ativo</Label>
+            <p className="text-xs text-muted-foreground">Inativos não recebem novos leads e não aparecem no routing</p>
+          </div>
         </div>
       </div>
 

@@ -87,9 +87,14 @@ export default async function BrokersPage() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{tenantName ?? "PlaceGo"}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs">
-                      {u.role === "corretor" ? "Interno" : "Tenant"}
-                    </Badge>
+                    <div className="flex gap-1 flex-wrap">
+                      <Badge variant="secondary" className="text-xs">
+                        {u.role === "corretor" ? "Interno" : "Tenant"}
+                      </Badge>
+                      {!u.isActive && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">Inativo</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/brokers/${u.id}/edit`} />}>

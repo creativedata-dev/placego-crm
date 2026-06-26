@@ -13,10 +13,16 @@ export async function createBroker(formData: FormData) {
 
   const email = formData.get("email") as string;
   const name = formData.get("name") as string;
-  const tenantId = formData.get("tenantId") as string || null;
+  const tenantId = (formData.get("tenantId") as string) || null;
   const role = (formData.get("role") as string) || "corretor";
-  const phone = formData.get("phone") as string;
-  const creci = formData.get("creci") as string;
+  const phone = (formData.get("phone") as string) || null;
+  const creci = (formData.get("creci") as string) || null;
+  const isActive = formData.get("isActive") !== "false";
+  const cities = ((formData.get("cities") as string) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const neighborhoods = ((formData.get("neighborhoods") as string) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const propertyTypes = formData.getAll("propertyTypes") as string[];
+  const minPrice = (formData.get("minPrice") as string) || null;
+  const maxPrice = (formData.get("maxPrice") as string) || null;
 
   // Criar usuário no Supabase Auth (requer service role key)
   const supabase = createServiceClient(
@@ -54,18 +60,25 @@ export async function createBroker(formData: FormData) {
     role: role as any,
     tenantId: tenantId || null,
     phone,
+    isActive,
   }).onConflictDoUpdate({
     target: users.id,
-    set: { name, role: role as any, tenantId: tenantId || null, phone, updatedAt: new Date() },
+    set: { name, role: role as any, tenantId: tenantId || null, phone, isActive, updatedAt: new Date() },
   });
 
-  // Inserir preferências do corretor
-  if (creci) {
-    await db.insert(brokerPreferences).values({
-      brokerId: userId,
-      creci,
-    }).onConflictDoNothing();
-  }
+  // Inserir/atualizar preferências do corretor
+  await db.insert(brokerPreferences).values({
+    brokerId: userId,
+    creci: creci ?? null,
+    cities,
+    neighborhoods,
+    minPrice: minPrice ?? undefined,
+    maxPrice: maxPrice ?? undefined,
+    propertyTypes,
+  }).onConflictDoUpdate({
+    target: brokerPreferences.brokerId,
+    set: { creci: creci ?? null, cities, neighborhoods, minPrice: minPrice ?? undefined, maxPrice: maxPrice ?? undefined, propertyTypes },
+  });
 
   revalidatePath("/brokers");
   redirect("/brokers");
@@ -78,10 +91,12 @@ export async function updateBrokerPreferences(brokerId: string, formData: FormDa
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const phone = formData.get("phone") as string;
+  const isActive = formData.get("isActive") !== "false";
   await db.update(users).set({
     ...(name && { name }),
     ...(email && { email }),
     phone: phone || null,
+    isActive,
     updatedAt: new Date(),
   }).where(eq(users.id, brokerId));
 

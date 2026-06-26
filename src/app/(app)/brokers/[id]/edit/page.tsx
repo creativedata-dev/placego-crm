@@ -42,6 +42,7 @@ export default async function EditBrokerPage({ params }: { params: Promise<{ id:
           name: broker.name,
           email: broker.email,
           phone: broker.phone ?? "",
+          isActive: broker.isActive,
         }}
         prefs={{
           creci: prefs?.creci ?? "",

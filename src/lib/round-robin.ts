@@ -16,7 +16,7 @@ export async function getNextSdrId(): Promise<string | null> {
     FROM users u
     LEFT JOIN sdr_assignments sa ON sa.sdr_id = u.id
       AND sa.assigned_at >= ${since}
-    WHERE u.role = 'sdr'
+    WHERE u.role = 'sdr' AND u.is_active = true
     GROUP BY u.id, u.sdr_sequence_order
     ORDER BY COUNT(sa.id) ASC, u.sdr_sequence_order ASC
     LIMIT 1

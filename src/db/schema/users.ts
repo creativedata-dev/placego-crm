@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, pgEnum, integer, boolean } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants";
 
 export const userRoleEnum = pgEnum("user_role", [
@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   tenantId: uuid("tenant_id").references(() => tenants.id),
   phone: text("phone"),
   sdrSequenceOrder: integer("sdr_sequence_order").default(0),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
