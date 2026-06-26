@@ -54,13 +54,14 @@ export default async function BrokersPage() {
               <TableHead>Cidades</TableHead>
               <TableHead>Tenant</TableHead>
               <TableHead>Perfil</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-[80px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {brokerList.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   Nenhum corretor cadastrado.
                 </TableCell>
               </TableRow>
@@ -87,14 +88,22 @@ export default async function BrokersPage() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{tenantName ?? "PlaceGo"}</TableCell>
                   <TableCell>
-                    <div className="flex gap-1 flex-wrap">
-                      <Badge variant="secondary" className="text-xs">
-                        {u.role === "corretor" ? "Interno" : "Tenant"}
-                      </Badge>
-                      {!u.isActive && (
-                        <Badge variant="outline" className="text-xs text-muted-foreground">Inativo</Badge>
-                      )}
-                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {u.role === "corretor" ? "Interno" : "Tenant"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {u.isActive ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                        Ativo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
+                        Inativo
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/brokers/${u.id}/edit`} />}>
