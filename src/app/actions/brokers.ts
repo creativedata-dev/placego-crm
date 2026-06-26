@@ -53,11 +53,22 @@ export async function createBroker(formData: FormData) {
 export async function updateBrokerPreferences(brokerId: string, formData: FormData) {
   await requireRole(["admin_placego", "admin_tenant", "corretor", "corretor_tenant"]);
 
-  const cities = (formData.get("cities") as string)
+  // Atualizar dados pessoais
+  const name = formData.get("name") as string;
+  const email = formData.get("email") as string;
+  const phone = formData.get("phone") as string;
+  await db.update(users).set({
+    ...(name && { name }),
+    ...(email && { email }),
+    phone: phone || null,
+    updatedAt: new Date(),
+  }).where(eq(users.id, brokerId));
+
+  const cities = ((formData.get("cities") as string) ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const neighborhoods = (formData.get("neighborhoods") as string)
+  const neighborhoods = ((formData.get("neighborhoods") as string) ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
