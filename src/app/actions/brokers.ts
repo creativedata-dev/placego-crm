@@ -6,7 +6,7 @@ import { users, brokerPreferences } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 export async function createBroker(formData: FormData) {
   await requireRole(["admin_placego", "admin_tenant"]);
@@ -18,8 +18,12 @@ export async function createBroker(formData: FormData) {
   const phone = formData.get("phone") as string;
   const creci = formData.get("creci") as string;
 
-  // Criar usuário no Supabase Auth
-  const supabase = await createClient();
+  // Criar usuário no Supabase Auth (requer service role key)
+  const supabase = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
   const { data: authData, error } = await supabase.auth.admin.createUser({
     email,
     password: Math.random().toString(36).slice(-10),
