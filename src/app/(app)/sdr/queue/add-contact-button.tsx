@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { createContact } from "@/app/actions/contacts";
 import { Plus } from "lucide-react";
@@ -71,31 +70,32 @@ export function AddContactButton({ tenants }: Props) {
 
             <div className="space-y-2">
               <Label htmlFor="origin">Origem do contato *</Label>
-              <Select name="origin" defaultValue="whatsapp" required>
-                <SelectTrigger id="origin">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORIGINS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                id="origin"
+                name="origin"
+                defaultValue="whatsapp"
+                required
+                className="w-full h-8 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
+              >
+                {ORIGINS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
 
             {tenants.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="tenantId">Empresa (opcional)</Label>
-                <Select name="tenantId">
-                  <SelectTrigger id="tenantId">
-                    <SelectValue placeholder="Nenhuma empresa vinculada" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tenants.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select
+                  id="tenantId"
+                  name="tenantId"
+                  className="w-full h-8 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
+                >
+                  <option value="">Nenhuma empresa vinculada</option>
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
               </div>
             )}
 
