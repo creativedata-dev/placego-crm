@@ -97,7 +97,11 @@ export function ContactReply({
           onKeyDown={handleKeyDown}
           placeholder={
             !canSend
-              ? `Sem ${channel === "whatsapp" ? "telefone" : "email"} cadastrado para este contato`
+              ? channel === "whatsapp"
+                ? !contactPhone
+                  ? "Sem telefone cadastrado para este contato"
+                  : "Empresa não vinculada ou sem WhatsApp configurado — vincule uma empresa em Empresas → Conectores"
+                : "Sem email cadastrado para este contato"
               : `Digite a mensagem... (Ctrl+Enter para enviar)`
           }
           disabled={!canSend || isPending}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, tenants } from "@/db/schema";
+import { leads, tenants, contactMessages } from "@/db/schema";
 import { eq, and, gte, or } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 
@@ -44,7 +44,13 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (existing) {
-      // Contato já existe — não cria duplicado
+      // Contato já existe — registra a mensagem na timeline dele
+      await db.insert(contactMessages).values({
+        contactId: existing.id,
+        channel: "whatsapp",
+        direction: "in",
+        content: messageText,
+      });
       return NextResponse.json({ ok: true, duplicate: true });
     }
 
@@ -57,8 +63,15 @@ export async function POST(request: Request) {
       status: "new",
       tenantId: tenant?.id ?? null,
       qualityScore: 65, // whatsapp tem boa qualidade
-      notes: messageText !== "[mídia]" ? `Primeira mensagem: "${messageText}"` : null,
     }).returning();
+
+    // Registrar a mensagem original na timeline
+    await db.insert(contactMessages).values({
+      contactId: contact.id,
+      channel: "whatsapp",
+      direction: "in",
+      content: messageText,
+    });
 
     // Round-robin: atribuir ao próximo SDR
     await assignContactToNextSdr(contact.id);

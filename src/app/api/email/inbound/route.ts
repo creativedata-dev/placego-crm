@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, companyChannels } from "@/db/schema";
+import { leads, companyChannels, contactMessages } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 
@@ -43,7 +43,15 @@ export async function POST(request: Request) {
       .where(and(eq(leads.email, fromEmail), gte(leads.createdAt, thirtyDaysAgo)))
       .limit(1);
 
+    const messageContent = subject ? `${subject}\n\n${text}` : text;
+
     if (existing) {
+      await db.insert(contactMessages).values({
+        contactId: existing.id,
+        channel: "email",
+        direction: "in",
+        content: messageContent,
+      });
       return NextResponse.json({ ok: true, duplicate: true });
     }
 
@@ -58,8 +66,14 @@ export async function POST(request: Request) {
       status: "new",
       tenantId: matchedChannel?.companyId ?? null,
       qualityScore: score,
-      notes: subject ? `Assunto: ${subject}${text ? `\n\n${text.slice(0, 300)}` : ""}` : null,
     }).returning();
+
+    await db.insert(contactMessages).values({
+      contactId: contact.id,
+      channel: "email",
+      direction: "in",
+      content: messageContent,
+    });
 
     await assignContactToNextSdr(contact.id);
 
