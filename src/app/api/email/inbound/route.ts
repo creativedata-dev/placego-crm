@@ -4,41 +4,48 @@ import { companyChannels } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { ingestContactMessage } from "@/lib/contact-ingestion";
 
-// Webhook do Forward Email (forwardemail.net) para emails recebidos
-// Configurado via registro TXT: forward-email=alias:https://crm.placego.com.br/api/email/inbound
+// Webhook do Forward Email (forwardemail.net)
+// TXT: forward-email=https://crm.placego.com.br/api/email/inbound
+// Payload: JSON com campos raiz: from, to, subject, text, html, attachments, headers, messageId
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Log do payload bruto — usado para mapear o formato real do Forward Email
-    console.log("[email/inbound] payload bruto:", JSON.stringify(body).slice(0, 2000));
+    // Forward Email envia JSON com campos raiz
+    // from/to podem ser string "Nome <email>" ou objeto { text, value[{address,name}] }
+    function extractEmail(field: any): { email: string; name: string } {
+      if (!field) return { email: "", name: "" };
+      if (typeof field === "string") {
+        const nameMatch = field.match(/^"?([^"<]+)"?\s*</);
+        const emailMatch = field.match(/<([^>]+)>/) ?? field.match(/[\w.+\-]+@[\w\-]+\.[\w.\-]+/);
+        return {
+          email: emailMatch ? emailMatch[emailMatch.length === 1 ? 0 : 1] : field.trim(),
+          name: nameMatch?.[1]?.trim() ?? "",
+        };
+      }
+      // Objeto { text: "Nome <email>", value: [{address, name}] }
+      if (field.value?.[0]) {
+        return { email: field.value[0].address ?? "", name: field.value[0].name ?? "" };
+      }
+      if (field.text) return extractEmail(field.text);
+      if (field.address) return { email: field.address, name: field.name ?? "" };
+      return { email: "", name: "" };
+    }
 
-    // Extrai remetente — tenta os formatos mais comuns de parsers de email
-    const fromRaw: string =
-      body.from?.text ?? body.from?.address ?? body.from ??
-      body.sender?.text ?? body.sender?.address ?? body.sender ??
-      body.envelope?.from ?? "";
+    const { email: fromEmail, name: fromNameRaw } = extractEmail(body.from);
+    const fromName = fromNameRaw || fromEmail.split("@")[0] || "Sem nome";
 
-    // Extrai apenas o endereço de email de strings tipo "Nome <email@x.com>"
-    const emailMatch = (fromRaw as string).match(/<([^>]+)>/) ?? (fromRaw as string).match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
-    const fromEmail = emailMatch ? emailMatch[emailMatch.length === 1 ? 0 : 1] : fromRaw;
-
-    // Nome do remetente (se vier separado do email)
-    const nameMatch = (fromRaw as string).match(/^"?([^"<]+)"?\s*</);
-    const fromName = (nameMatch?.[1]?.trim()) || (fromEmail as string)?.split("@")[0] || "Sem nome";
-
-    const toRaw: string =
-      body.to?.text ?? body.to?.address ?? body.to ??
-      body.envelope?.to?.[0] ?? body.recipient ?? "";
-    const toAddress = Array.isArray(toRaw) ? toRaw[0] : toRaw;
+    // to pode ser string, objeto ou array
+    const toField = Array.isArray(body.to) ? body.to[0] : body.to;
+    const { email: toAddress } = extractEmail(toField);
 
     const subject: string = body.subject ?? "";
-    const text: string =
-      body.text ?? body.textBody ?? body.plain ?? body.body_plain ??
-      body.html ?? body.htmlBody ?? "";
+    const text: string = body.text ?? body.html ?? "";
+
+    console.log(`[email/inbound] from="${fromEmail}" name="${fromName}" to="${toAddress}" subject="${subject}"`);
 
     if (!fromEmail) {
-      console.log("[email/inbound] sem remetente identificável, ignorando");
+      console.log("[email/inbound] sem remetente, ignorando");
       return NextResponse.json({ ok: true });
     }
 
@@ -50,15 +57,15 @@ export async function POST(request: Request) {
 
     const matchedChannel = allEmailChannels.find((ch) => {
       const cfg = ch.config as any;
-      return cfg?.address && (toAddress as string)?.toLowerCase().includes(cfg.address.toLowerCase());
+      return cfg?.address && toAddress?.toLowerCase().includes(cfg.address.toLowerCase());
     });
 
-    const score = 60 + (fromName && fromName !== (fromEmail as string).split("@")[0] ? 20 : 0);
+    const score = 60 + (fromName && fromName !== fromEmail.split("@")[0] ? 20 : 0);
     const messageContent = subject ? `${subject}\n\n${text}` : text;
 
     const result = await ingestContactMessage({
       name: fromName,
-      email: fromEmail as string,
+      email: fromEmail,
       origin: "email",
       channel: "email",
       tenantId: matchedChannel?.companyId ?? null,
@@ -66,11 +73,11 @@ export async function POST(request: Request) {
       messageContent,
     });
 
-    console.log(`[email/inbound] ${result.isNew ? "Novo" : "Mensagem de"} contato: ${fromName} <${fromEmail}>`);
+    console.log(`[email/inbound] ${result.isNew ? "✓ NOVO contato" : "✓ mensagem adicionada"}: ${fromName} <${fromEmail}>`);
     return NextResponse.json({ ok: true });
 
-  } catch (err) {
-    console.error("[email/inbound] erro:", err);
+  } catch (err: any) {
+    console.error("[email/inbound] ERRO:", err?.message ?? err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
