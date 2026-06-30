@@ -8,9 +8,10 @@ import type { Tag } from "@/db/schema";
 interface Props {
   contactId: string;
   initialTags: Tag[];
+  compact?: boolean;
 }
 
-export function TagPicker({ contactId, initialTags }: Props) {
+export function TagPicker({ contactId, initialTags, compact = false }: Props) {
   const [contactTags, setContactTags] = useState<Tag[]>(initialTags);
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [open, setOpen] = useState(false);
@@ -66,7 +67,7 @@ export function TagPicker({ contactId, initialTags }: Props) {
   return (
     <div ref={containerRef} className="relative">
       <div className="flex flex-wrap gap-1.5 items-center">
-        {contactTags.map((tag) => (
+        {!compact && contactTags.map((tag) => (
           <span
             key={tag.id}
             className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full text-white group"
@@ -84,9 +85,12 @@ export function TagPicker({ contactId, initialTags }: Props) {
 
         <button
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+          className={compact
+            ? "inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+            : "inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+          }
         >
-          <Plus className="h-3 w-3" /> Tag
+          <Plus className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} /> Tag
         </button>
       </div>
 

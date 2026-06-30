@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { leads, leadAssignments, users, tenants } from "@/db/schema";
+import { leads, leadAssignments, users, tenants, sdrAssignments } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -42,6 +42,12 @@ export async function assignLeadToBrokers(
       notes: notes ?? null,
     }))
   );
+
+  // Move o sdr_assignment para "distribuido"
+  await db
+    .update(sdrAssignments)
+    .set({ status: "distribuido", updatedAt: new Date() })
+    .where(eq(sdrAssignments.contactId, leadId));
 
   // Busca dados dos corretores
   const brokers = await db

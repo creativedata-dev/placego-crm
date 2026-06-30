@@ -44,7 +44,7 @@ export async function createContact(formData: FormData) {
 
 export async function updateSdrAssignmentStatus(
   assignmentId: string,
-  status: "novo" | "em_contato" | "aguardando" | "qualificado" | "invalido",
+  status: "novo" | "em_contato" | "aguardando" | "qualificado" | "distribuido" | "invalido",
   notes?: string
 ) {
   await requireRole(["sdr", "admin_placego"]);
