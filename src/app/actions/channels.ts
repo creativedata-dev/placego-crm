@@ -9,13 +9,25 @@ import { requireRole } from "@/lib/auth";
 export async function toggleChannel(companyId: string, channelType: string, isActive: boolean) {
   await requireRole(["admin_placego"]);
 
-  await db
-    .insert(companyChannels)
-    .values({ companyId, channelType: channelType as any, isActive })
-    .onConflictDoUpdate({
-      target: [companyChannels.companyId, companyChannels.channelType],
-      set: { isActive, updatedAt: new Date() },
+  // Verificar se o canal já existe
+  const [existing] = await db
+    .select({ id: companyChannels.id })
+    .from(companyChannels)
+    .where(and(eq(companyChannels.companyId, companyId), eq(companyChannels.channelType, channelType as any)))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(companyChannels)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(companyChannels.id, existing.id));
+  } else {
+    await db.insert(companyChannels).values({
+      companyId,
+      channelType: channelType as any,
+      isActive,
     });
+  }
 
   revalidatePath(`/tenants/${companyId}/channels`);
 }
@@ -33,29 +45,29 @@ export async function saveChannelConfig(
 ) {
   await requireRole(["admin_placego"]);
 
-  await db
-    .insert(companyChannels)
-    .values({
-      companyId,
-      channelType: channelType as any,
-      isActive: true,
-      config,
-      welcomeMessage: extras?.welcomeMessage,
-      afterHoursMessage: extras?.afterHoursMessage,
-      businessHours: extras?.businessHours,
-      keywords: extras?.keywords ?? [],
-    })
-    .onConflictDoUpdate({
-      target: [companyChannels.companyId, companyChannels.channelType],
-      set: {
-        config,
-        welcomeMessage: extras?.welcomeMessage,
-        afterHoursMessage: extras?.afterHoursMessage,
-        businessHours: extras?.businessHours,
-        keywords: extras?.keywords ?? [],
-        updatedAt: new Date(),
-      },
-    });
+  const [existing] = await db
+    .select({ id: companyChannels.id })
+    .from(companyChannels)
+    .where(and(eq(companyChannels.companyId, companyId), eq(companyChannels.channelType, channelType as any)))
+    .limit(1);
+
+  const values = {
+    companyId,
+    channelType: channelType as any,
+    isActive: true,
+    config,
+    welcomeMessage: extras?.welcomeMessage,
+    afterHoursMessage: extras?.afterHoursMessage,
+    businessHours: extras?.businessHours,
+    keywords: extras?.keywords ?? [],
+    updatedAt: new Date(),
+  };
+
+  if (existing) {
+    await db.update(companyChannels).set(values).where(eq(companyChannels.id, existing.id));
+  } else {
+    await db.insert(companyChannels).values(values);
+  }
 
   revalidatePath(`/tenants/${companyId}/channels`);
 }
