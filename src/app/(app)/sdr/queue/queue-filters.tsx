@@ -41,60 +41,48 @@ export function QueueFilters({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  const pill = (active: boolean, secondary = false) =>
-    `text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
-      active
-        ? secondary
-          ? "bg-secondary text-secondary-foreground border-secondary"
-          : "bg-blue-600 text-white border-blue-600"
-        : "bg-background border-border hover:bg-muted"
-    }`;
+  const selectClass =
+    "h-8 rounded-lg border border-input bg-background px-2.5 text-xs outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring cursor-pointer";
 
   return (
-    <div className="space-y-2">
-      {/* Origens */}
-      <div className="flex gap-1.5 flex-wrap">
+    <div className="flex gap-2 flex-wrap items-center">
+      {/* Origem */}
+      <select
+        value={currentOrigin ?? ""}
+        onChange={(e) => update("origin", e.target.value)}
+        className={selectClass}
+      >
         {ORIGINS.map((o) => (
-          <button
-            key={o.value}
-            onClick={() => update("origin", o.value)}
-            className={pill((currentOrigin ?? "") === o.value)}
-          >
-            {o.label}
-          </button>
+          <option key={o.value} value={o.value}>{o.label}</option>
         ))}
-      </div>
+      </select>
 
-      {/* Empresas + SDRs (admin) */}
-      {(tenants.length > 0 || (isAdmin && sdrs.length > 0)) && (
-        <div className="flex gap-1.5 flex-wrap items-center">
-          {tenants.length > 0 && (
-            <>
-              <button onClick={() => update("tenant", "")} className={pill(!currentTenant, true)}>
-                Todas empresas
-              </button>
-              {tenants.map((t) => (
-                <button key={t.id} onClick={() => update("tenant", t.id)} className={pill(currentTenant === t.id, true)}>
-                  {t.name}
-                </button>
-              ))}
-            </>
-          )}
+      {/* Empresa */}
+      {tenants.length > 0 && (
+        <select
+          value={currentTenant ?? ""}
+          onChange={(e) => update("tenant", e.target.value)}
+          className={selectClass}
+        >
+          <option value="">Todas empresas</option>
+          {tenants.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      )}
 
-          {isAdmin && sdrs.length > 0 && (
-            <>
-              <span className="text-muted-foreground text-xs self-center px-1">|</span>
-              <button onClick={() => update("sdr", "")} className={pill(!currentSdr, true)}>
-                Todos SDRs
-              </button>
-              {sdrs.map((s) => (
-                <button key={s.id} onClick={() => update("sdr", s.id)} className={pill(currentSdr === s.id, true)}>
-                  {s.name}
-                </button>
-              ))}
-            </>
-          )}
-        </div>
+      {/* SDR (admin) */}
+      {isAdmin && sdrs.length > 0 && (
+        <select
+          value={currentSdr ?? ""}
+          onChange={(e) => update("sdr", e.target.value)}
+          className={selectClass}
+        >
+          <option value="">Todos SDRs</option>
+          {sdrs.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
       )}
     </div>
   );
