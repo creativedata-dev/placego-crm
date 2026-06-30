@@ -31,8 +31,15 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Public routes
-  const publicRoutes = ["/login", "/auth/callback", "/api/leads/capture"];
+  // Public routes — webhooks e endpoints públicos não precisam de auth
+  const publicRoutes = [
+    "/login",
+    "/auth/callback",
+    "/api/leads/capture",
+    "/api/email/inbound",
+    "/api/evolution/webhook",
+    "/api/meta/webhook",
+  ];
   if (publicRoutes.some((r) => pathname.startsWith(r))) {
     return supabaseResponse;
   }
