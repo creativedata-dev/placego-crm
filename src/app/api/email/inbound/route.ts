@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, companyChannels, contactMessages } from "@/db/schema";
-import { eq, and, gte } from "drizzle-orm";
-import { assignContactToNextSdr } from "@/lib/round-robin";
+import { companyChannels } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { ingestContactMessage } from "@/lib/contact-ingestion";
 
 // Webhook do Resend para emails recebidos (evento email.received)
 export async function POST(request: Request) {
@@ -35,49 +35,20 @@ export async function POST(request: Request) {
       return cfg?.address && toAddress.toLowerCase().includes(cfg.address.toLowerCase());
     });
 
-    // Deduplicação: mesmo email nos últimos 30 dias
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [existing] = await db
-      .select({ id: leads.id })
-      .from(leads)
-      .where(and(eq(leads.email, fromEmail), gte(leads.createdAt, thirtyDaysAgo)))
-      .limit(1);
-
+    const score = 60 + (fromName && fromName !== fromEmail.split("@")[0] ? 20 : 0);
     const messageContent = subject ? `${subject}\n\n${text}` : text;
 
-    if (existing) {
-      await db.insert(contactMessages).values({
-        contactId: existing.id,
-        channel: "email",
-        direction: "in",
-        content: messageContent,
-      });
-      return NextResponse.json({ ok: true, duplicate: true });
-    }
-
-    const score = 60 + (fromName && fromName !== fromEmail.split("@")[0] ? 20 : 0);
-
-    const [contact] = await db.insert(leads).values({
+    const result = await ingestContactMessage({
       name: fromName,
-      phone: null,
       email: fromEmail,
       origin: "email",
-      stage: "contato",
-      status: "new",
+      channel: "email",
       tenantId: matchedChannel?.companyId ?? null,
       qualityScore: score,
-    }).returning();
-
-    await db.insert(contactMessages).values({
-      contactId: contact.id,
-      channel: "email",
-      direction: "in",
-      content: messageContent,
+      messageContent,
     });
 
-    await assignContactToNextSdr(contact.id);
-
-    console.log(`[email/inbound] Novo contato: ${fromName} <${fromEmail}>`);
+    console.log(`[email/inbound] ${result.isNew ? "Novo" : "Mensagem de"} contato: ${fromName} <${fromEmail}>`);
     return NextResponse.json({ ok: true });
 
   } catch (err) {

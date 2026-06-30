@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, tenants, contactMessages } from "@/db/schema";
-import { eq, and, gte, or } from "drizzle-orm";
-import { assignContactToNextSdr } from "@/lib/round-robin";
+import { tenants } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { ingestContactMessage } from "@/lib/contact-ingestion";
 
 // Evolution API envia eventos para este endpoint
 export async function POST(request: Request) {
@@ -35,48 +35,17 @@ export async function POST(request: Request) {
       ?? data?.message?.extendedTextMessage?.text
       ?? "[mídia]";
 
-    // Deduplicação: já existe contato com esse telefone nos últimos 30 dias?
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [existing] = await db
-      .select({ id: leads.id })
-      .from(leads)
-      .where(and(eq(leads.phone, phone), gte(leads.createdAt, thirtyDaysAgo)))
-      .limit(1);
-
-    if (existing) {
-      // Contato já existe — registra a mensagem na timeline dele
-      await db.insert(contactMessages).values({
-        contactId: existing.id,
-        channel: "whatsapp",
-        direction: "in",
-        content: messageText,
-      });
-      return NextResponse.json({ ok: true, duplicate: true });
-    }
-
-    // Criar contato
-    const [contact] = await db.insert(leads).values({
+    const result = await ingestContactMessage({
       name: pushName,
       phone,
       origin: "whatsapp",
-      stage: "contato",
-      status: "new",
-      tenantId: tenant?.id ?? null,
-      qualityScore: 65, // whatsapp tem boa qualidade
-    }).returning();
-
-    // Registrar a mensagem original na timeline
-    await db.insert(contactMessages).values({
-      contactId: contact.id,
       channel: "whatsapp",
-      direction: "in",
-      content: messageText,
+      tenantId: tenant?.id ?? null,
+      qualityScore: 65,
+      messageContent: messageText,
     });
 
-    // Round-robin: atribuir ao próximo SDR
-    await assignContactToNextSdr(contact.id);
-
-    console.log(`[webhook/evolution] Novo contato via WhatsApp: ${pushName} (${phone})`);
+    console.log(`[webhook/evolution] ${result.isNew ? "Novo" : "Mensagem de"} contato via WhatsApp: ${pushName} (${phone})`);
     return NextResponse.json({ ok: true });
 
   } catch (err) {

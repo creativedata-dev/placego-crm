@@ -40,6 +40,7 @@ export const leads = pgTable("leads", {
   name: text("name").notNull(),
   phone: text("phone"),
   email: text("email"),
+  metaUserId: text("meta_user_id"),
   tenantId: uuid("tenant_id").references(() => tenants.id),
   stage: contactStageEnum("stage").notNull().default("contato"),
   sourcePropertyId: uuid("source_property_id").references(() => properties.id),
