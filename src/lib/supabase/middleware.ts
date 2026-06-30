@@ -38,6 +38,7 @@ export async function updateSession(request: NextRequest) {
     "/api/leads/capture",
     "/api/email/inbound",
     "/api/evolution/webhook",
+    "/api/evolution/status",
     "/api/meta/webhook",
   ];
   if (publicRoutes.some((r) => pathname.startsWith(r))) {
