@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { leads, sdrAssignments, properties, tenants, users, tags, contactTags } from "@/db/schema";
+import { leads, sdrAssignments, properties, tenants, users, tags, contactTags, leadAssignments } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { eq, desc, inArray } from "drizzle-orm";
 import { QueueFilters } from "./queue-filters";
@@ -18,10 +18,10 @@ export const STATUS_COLUMNS = [
 export default async function SDRQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ origin?: string; tenant?: string; sdr?: string; tag?: string }>;
+  searchParams: Promise<{ origin?: string; tenant?: string; sdr?: string; tag?: string; broker?: string }>;
 }) {
   const user = await requireRole(["sdr", "admin_placego"]);
-  const { origin, tenant: tenantFilter, sdr: sdrFilter, tag: tagFilter } = await searchParams;
+  const { origin, tenant: tenantFilter, sdr: sdrFilter, tag: tagFilter, broker: brokerFilter } = await searchParams;
 
   const isAdmin = user.role === "admin_placego";
   const targetSdrId = isAdmin ? (sdrFilter ?? null) : user.id;
@@ -61,21 +61,44 @@ export default async function SDRQueuePage({
     tagsByContact.set(row.contactId, list);
   }
 
+  // Buscar corretores atribuídos (para contatos já distribuídos)
+  const distributedIds = rows
+    .filter((r) => r.assignment.status === "distribuido")
+    .map((r) => r.contact.id);
+
+  const brokerRows = distributedIds.length > 0
+    ? await db
+        .select({ leadId: leadAssignments.leadId, brokerId: users.id, brokerName: users.name })
+        .from(leadAssignments)
+        .innerJoin(users, eq(leadAssignments.brokerId, users.id))
+        .where(inArray(leadAssignments.leadId, distributedIds))
+    : [];
+
+  const brokersByContact = new Map<string, { id: string; name: string }[]>();
+  for (const row of brokerRows) {
+    const list = brokersByContact.get(row.leadId) ?? [];
+    list.push({ id: row.brokerId, name: row.brokerName });
+    brokersByContact.set(row.leadId, list);
+  }
+
   // Filtrar (sem filtrar por status — isso é feito nas colunas)
   const filtered = rows.filter((r) => {
     if (origin && r.contact.origin !== origin) return false;
     if (tenantFilter && r.contact.tenantId !== tenantFilter) return false;
     if (tagFilter && !(tagsByContact.get(r.contact.id) ?? []).some((t) => t.id === tagFilter)) return false;
+    if (brokerFilter && !(brokersByContact.get(r.contact.id) ?? []).some((b) => b.id === brokerFilter)) return false;
     return true;
   });
 
-  // Lista de empresas, SDRs e tags para filtros
-  const [tenantList, sdrList, tagList] = await Promise.all([
+  // Lista de empresas, SDRs, tags e corretores para filtros
+  const [tenantList, sdrList, tagList, brokerList] = await Promise.all([
     db.select({ id: tenants.id, name: tenants.name }).from(tenants),
     isAdmin
       ? db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "sdr"))
       : Promise.resolve([]),
     db.select().from(tags).orderBy(tags.name),
+    db.select({ id: users.id, name: users.name }).from(users)
+      .where(inArray(users.role, ["corretor", "corretor_tenant"])),
   ]);
 
   // Agrupar por coluna
@@ -83,7 +106,11 @@ export default async function SDRQueuePage({
     ...col,
     cards: filtered
       .filter((r) => r.assignment.status === col.id)
-      .map((r) => ({ ...r, tags: tagsByContact.get(r.contact.id) ?? [] })),
+      .map((r) => ({
+        ...r,
+        tags: tagsByContact.get(r.contact.id) ?? [],
+        brokerNames: (brokersByContact.get(r.contact.id) ?? []).map((b) => b.name),
+      })),
   }));
 
   return (
@@ -107,9 +134,11 @@ export default async function SDRQueuePage({
         currentTenant={tenantFilter}
         currentSdr={sdrFilter}
         currentTag={tagFilter}
+        currentBroker={brokerFilter}
         tenants={tenantList}
         sdrs={sdrList}
         tagsList={tagList}
+        brokers={brokerList}
         isAdmin={isAdmin}
       />
 

@@ -15,31 +15,32 @@ const ORIGINS = [
 ];
 
 interface Props {
-  currentStatus?: string;
   currentOrigin?: string;
   currentTenant?: string;
   currentSdr?: string;
   currentTag?: string;
+  currentBroker?: string;
   tenants: { id: string; name: string }[];
   sdrs: { id: string; name: string }[];
   tagsList: { id: string; name: string }[];
+  brokers: { id: string; name: string }[];
   isAdmin: boolean;
 }
 
 export function QueueFilters({
-  currentStatus, currentOrigin, currentTenant, currentSdr, currentTag,
-  tenants, sdrs, tagsList, isAdmin,
+  currentOrigin, currentTenant, currentSdr, currentTag, currentBroker,
+  tenants, sdrs, tagsList, brokers, isAdmin,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
 
   function update(key: string, value: string) {
     const params = new URLSearchParams();
-    if (key !== "status" && currentStatus) params.set("status", currentStatus);
     if (key !== "origin" && currentOrigin) params.set("origin", currentOrigin);
     if (key !== "tenant" && currentTenant) params.set("tenant", currentTenant);
     if (key !== "sdr" && currentSdr) params.set("sdr", currentSdr);
     if (key !== "tag" && currentTag) params.set("tag", currentTag);
+    if (key !== "broker" && currentBroker) params.set("broker", currentBroker);
     if (value) params.set(key, value);
     router.push(`${pathname}?${params.toString()}`);
   }
@@ -84,6 +85,20 @@ export function QueueFilters({
           <option value="">Todas tags</option>
           {tagsList.map((t) => (
             <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      )}
+
+      {/* Corretor (filtra coluna Distribuído) */}
+      {brokers.length > 0 && (
+        <select
+          value={currentBroker ?? ""}
+          onChange={(e) => update("broker", e.target.value)}
+          className={selectClass}
+        >
+          <option value="">Todos corretores</option>
+          {brokers.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </select>
       )}

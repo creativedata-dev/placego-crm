@@ -38,13 +38,14 @@ interface Props {
   tenantName: string | null;
   sdrName: string | null;
   tags: Tag[];
+  brokerNames: string[];
   isAdmin: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
 }
 
 export function SdrLeadCard({
-  assignment, contact, propertyAddress, propertyNeighborhood, tenantName, sdrName, tags,
+  assignment, contact, propertyAddress, propertyNeighborhood, tenantName, sdrName, tags, brokerNames,
   isAdmin, onDragStart, onDragEnd,
 }: Props) {
   const [isPending, startTransition] = useTransition();
@@ -85,6 +86,12 @@ export function SdrLeadCard({
 
       {isAdmin && sdrName && (
         <Badge variant="outline" className="text-[10px]">SDR: {sdrName}</Badge>
+      )}
+
+      {brokerNames.length > 0 && (
+        <Badge className="text-[10px] bg-purple-500/10 text-purple-700 border-purple-200 hover:bg-purple-500/10">
+          🤝 {brokerNames.join(", ")}
+        </Badge>
       )}
 
       {tenantName && (

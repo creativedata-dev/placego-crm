@@ -15,6 +15,7 @@ type CardData = {
   tenantName: string | null;
   sdrName: string | null;
   tags: Tag[];
+  brokerNames: string[];
 };
 
 type ColumnData = {
