@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# documentos gerados localmente (não versionados)
+docs/*.docx
+docs/*.pptx
