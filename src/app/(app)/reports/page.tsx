@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileDown } from "lucide-react";
+import { TagReportCard } from "./tag-report-card";
 
 export default async function ReportsPage() {
   await requireRole(["admin_placego", "sdr"]);
@@ -56,6 +57,7 @@ export default async function ReportsPage() {
             </CardContent>
           </Card>
         ))}
+        <TagReportCard />
       </div>
     </div>
   );

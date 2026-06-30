@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { leads, sdrAssignments, properties, tenants, users } from "@/db/schema";
+import { leads, sdrAssignments, properties, tenants, users, tags, contactTags } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { SdrQueueActions } from "./sdr-queue-actions";
 import { QueueFilters } from "./queue-filters";
 import { AddContactButton } from "./add-contact-button";
 import { ScoreBadge } from "./score-badge";
+import { TagPicker } from "@/components/tags/tag-picker";
 
 const ORIGIN_LABELS: Record<string, string> = {
   meta_leadgen: "Lead Ads",
@@ -47,10 +48,10 @@ const STATUS_COLUMNS = [
 export default async function SDRQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; origin?: string; tenant?: string; sdr?: string }>;
+  searchParams: Promise<{ status?: string; origin?: string; tenant?: string; sdr?: string; tag?: string }>;
 }) {
   const user = await requireRole(["sdr", "admin_placego"]);
-  const { status, origin, tenant: tenantFilter, sdr: sdrFilter } = await searchParams;
+  const { status, origin, tenant: tenantFilter, sdr: sdrFilter, tag: tagFilter } = await searchParams;
 
   const isAdmin = user.role === "admin_placego";
   const activeStatus = status ?? "novo";
@@ -86,20 +87,39 @@ export default async function SDRQueuePage({
     counts[col.id] = rows.filter((r) => r.assignment.status === col.id).length;
   }
 
+  // Buscar tags de todos os contatos visíveis
+  const contactIds = rows.map((r) => r.contact.id);
+  const tagRows = contactIds.length > 0
+    ? await db
+        .select({ contactId: contactTags.contactId, tag: tags })
+        .from(contactTags)
+        .innerJoin(tags, eq(contactTags.tagId, tags.id))
+        .where(inArray(contactTags.contactId, contactIds))
+    : [];
+
+  const tagsByContact = new Map<string, typeof tagRows[number]["tag"][]>();
+  for (const row of tagRows) {
+    const list = tagsByContact.get(row.contactId) ?? [];
+    list.push(row.tag);
+    tagsByContact.set(row.contactId, list);
+  }
+
   // Filtrar para exibição
   const filtered = rows.filter((r) => {
     if (r.assignment.status !== activeStatus) return false;
     if (origin && r.contact.origin !== origin) return false;
     if (tenantFilter && r.contact.tenantId !== tenantFilter) return false;
+    if (tagFilter && !(tagsByContact.get(r.contact.id) ?? []).some((t) => t.id === tagFilter)) return false;
     return true;
   });
 
-  // Lista de empresas e SDRs para filtros
-  const [tenantList, sdrList] = await Promise.all([
+  // Lista de empresas, SDRs e tags para filtros
+  const [tenantList, sdrList, tagList] = await Promise.all([
     db.select({ id: tenants.id, name: tenants.name }).from(tenants),
     isAdmin
       ? db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "sdr"))
       : Promise.resolve([]),
+    db.select().from(tags).orderBy(tags.name),
   ]);
 
   return (
@@ -150,8 +170,10 @@ export default async function SDRQueuePage({
         currentOrigin={origin}
         currentTenant={tenantFilter}
         currentSdr={sdrFilter}
+        currentTag={tagFilter}
         tenants={tenantList}
         sdrs={sdrList}
+        tagsList={tagList}
         isAdmin={isAdmin}
       />
 
@@ -222,6 +244,8 @@ export default async function SDRQueuePage({
                     </span>
                   )}
                 </div>
+
+                <TagPicker contactId={contact.id} initialTags={tagsByContact.get(contact.id) ?? []} />
               </div>
 
               {/* Tempo */}

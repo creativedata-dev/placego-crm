@@ -1,7 +1,7 @@
 import { db } from "@/db";
-import { leadAssignments, leads, users } from "@/db/schema";
+import { leadAssignments, leads, users, tags, contactTags } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { KanbanBoard } from "./kanban-board";
 
 export const COLUMNS = [
@@ -34,10 +34,29 @@ export default async function PipelinePage() {
     )
     .orderBy(leadAssignments.assignedAt);
 
+  // Buscar tags dos leads (herdadas do contato original)
+  const leadIds = rows.map((r) => r.lead.id);
+  const tagRows = leadIds.length > 0
+    ? await db
+        .select({ contactId: contactTags.contactId, tag: tags })
+        .from(contactTags)
+        .innerJoin(tags, eq(contactTags.tagId, tags.id))
+        .where(inArray(contactTags.contactId, leadIds))
+    : [];
+
+  const tagsByLead = new Map<string, typeof tagRows[number]["tag"][]>();
+  for (const row of tagRows) {
+    const list = tagsByLead.get(row.contactId) ?? [];
+    list.push(row.tag);
+    tagsByLead.set(row.contactId, list);
+  }
+
   // Agrupar por coluna
   const columns = COLUMNS.map((col) => ({
     ...col,
-    cards: rows.filter((r) => r.assignment.status === col.id),
+    cards: rows
+      .filter((r) => r.assignment.status === col.id)
+      .map((r) => ({ ...r, tags: tagsByLead.get(r.lead.id) ?? [] })),
   }));
 
   return (

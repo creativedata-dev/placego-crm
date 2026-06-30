@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { moveAssignment } from "@/app/actions/pipeline";
 import { LeadCard } from "./lead-card";
 import type { COLUMNS } from "./page";
-import type { LeadAssignment, Lead } from "@/db/schema";
+import type { LeadAssignment, Lead, Tag } from "@/db/schema";
 
 type ColumnData = {
   id: string;
   label: string;
   color: string;
-  cards: { assignment: LeadAssignment; lead: Lead; brokerName: string }[];
+  cards: { assignment: LeadAssignment; lead: Lead; brokerName: string; tags: Tag[] }[];
 };
 
 interface Props {
@@ -85,12 +85,13 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
 
           {/* Cards */}
           <div className="flex flex-col gap-2 p-2 flex-1 min-h-[120px]">
-            {col.cards.map(({ assignment, lead, brokerName }) => (
+            {col.cards.map(({ assignment, lead, brokerName, tags }) => (
               <LeadCard
                 key={assignment.id}
                 assignment={assignment}
                 lead={lead}
                 brokerName={brokerName}
+                tags={tags}
                 isAdmin={isAdmin}
                 currentCol={col.id}
                 allColumns={columns.map((c) => ({ id: c.id, label: c.label }))}

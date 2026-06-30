@@ -19,14 +19,16 @@ interface Props {
   currentOrigin?: string;
   currentTenant?: string;
   currentSdr?: string;
+  currentTag?: string;
   tenants: { id: string; name: string }[];
   sdrs: { id: string; name: string }[];
+  tagsList: { id: string; name: string }[];
   isAdmin: boolean;
 }
 
 export function QueueFilters({
-  currentStatus, currentOrigin, currentTenant, currentSdr,
-  tenants, sdrs, isAdmin,
+  currentStatus, currentOrigin, currentTenant, currentSdr, currentTag,
+  tenants, sdrs, tagsList, isAdmin,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -37,6 +39,7 @@ export function QueueFilters({
     if (key !== "origin" && currentOrigin) params.set("origin", currentOrigin);
     if (key !== "tenant" && currentTenant) params.set("tenant", currentTenant);
     if (key !== "sdr" && currentSdr) params.set("sdr", currentSdr);
+    if (key !== "tag" && currentTag) params.set("tag", currentTag);
     if (value) params.set(key, value);
     router.push(`${pathname}?${params.toString()}`);
   }
@@ -66,6 +69,20 @@ export function QueueFilters({
         >
           <option value="">Todas empresas</option>
           {tenants.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      )}
+
+      {/* Tag */}
+      {tagsList.length > 0 && (
+        <select
+          value={currentTag ?? ""}
+          onChange={(e) => update("tag", e.target.value)}
+          className={selectClass}
+        >
+          <option value="">Todas tags</option>
+          {tagsList.map((t) => (
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>

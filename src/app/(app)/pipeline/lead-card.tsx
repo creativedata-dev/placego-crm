@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { moveAssignment, addActivity } from "@/app/actions/pipeline";
-import type { LeadAssignment, Lead } from "@/db/schema";
+import type { LeadAssignment, Lead, Tag } from "@/db/schema";
 import { Phone, MessageCircle, Mail, MapPin, StickyNote, ChevronRight, Plus } from "lucide-react";
 
 const ACTIVITY_ICONS = {
@@ -36,6 +36,7 @@ interface Props {
   assignment: LeadAssignment;
   lead: Lead;
   brokerName: string;
+  tags: Tag[];
   isAdmin: boolean;
   currentCol: string;
   allColumns: { id: string; label: string }[];
@@ -47,6 +48,7 @@ export function LeadCard({
   assignment,
   lead,
   brokerName,
+  tags,
   isAdmin,
   currentCol,
   allColumns,
@@ -97,6 +99,21 @@ export function LeadCard({
         {/* Corretor (admin only) */}
         {isAdmin && (
           <Badge variant="outline" className="text-[10px]">{brokerName}</Badge>
+        )}
+
+        {/* Tags herdadas do contato */}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white"
+                style={{ backgroundColor: tag.color }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Ações rápidas */}

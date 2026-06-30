@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { leads, sdrAssignments, contactMessages, users, tenants, properties } from "@/db/schema";
+import { leads, sdrAssignments, contactMessages, users, tenants, properties, tags, contactTags } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { ContactTimeline } from "./contact-timeline";
@@ -8,6 +8,7 @@ import { ContactReply } from "./contact-reply";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
 import { ContactStatusActions } from "./contact-status-actions";
+import { TagPicker } from "@/components/tags/tag-picker";
 
 const ORIGIN_LABELS: Record<string, string> = {
   whatsapp: "WhatsApp",
@@ -83,6 +84,13 @@ export default async function ContactDetailPage({
     .where(eq(contactMessages.contactId, id))
     .orderBy(contactMessages.sentAt);
 
+  // Buscar tags do contato
+  const contactTagRows = await db
+    .select({ tag: tags })
+    .from(contactTags)
+    .innerJoin(tags, eq(contactTags.tagId, tags.id))
+    .where(eq(contactTags.contactId, id));
+
   const { contact: c, tenantName, propertyAddress } = contact;
   const assignmentStatus = assignment?.assignment.status ?? "novo";
   const scoreColor = (c.qualityScore ?? 0) >= 70 ? "text-green-600" : (c.qualityScore ?? 0) >= 40 ? "text-yellow-600" : "text-red-500";
@@ -110,6 +118,9 @@ export default async function ContactDetailPage({
             {c.email && <span>✉️ {c.email}</span>}
             {tenantName && <span>🏢 {tenantName}</span>}
             {propertyAddress && <span>📍 {propertyAddress}</span>}
+          </div>
+          <div className="mt-2">
+            <TagPicker contactId={id} initialTags={contactTagRows.map((r) => r.tag)} />
           </div>
         </div>
 
