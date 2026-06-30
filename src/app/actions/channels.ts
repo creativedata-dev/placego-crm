@@ -42,7 +42,8 @@ export async function saveChannelConfig(
 
   const configJson = JSON.stringify(config);
   const businessHoursJson = JSON.stringify(extras?.businessHours ?? {});
-  const keywordsArray = extras?.keywords ?? [];
+  // Arrays precisam ser serializado como literal PostgreSQL: ARRAY['a','b'] ou '{a,b}'
+  const keywordsPg = `{${(extras?.keywords ?? []).map((k) => `"${k.replace(/"/g, '\\"')}"`).join(",")}}`;
   const welcomeMessage = extras?.welcomeMessage ?? null;
   const afterHoursMessage = extras?.afterHoursMessage ?? null;
 
@@ -57,7 +58,7 @@ export async function saveChannelConfig(
       ${welcomeMessage},
       ${afterHoursMessage},
       ${businessHoursJson}::jsonb,
-      ${keywordsArray},
+      ${keywordsPg}::text[],
       now(),
       now()
     )
@@ -67,7 +68,7 @@ export async function saveChannelConfig(
       welcome_message = ${welcomeMessage},
       after_hours_message = ${afterHoursMessage},
       business_hours = ${businessHoursJson}::jsonb,
-      keywords = ${keywordsArray},
+      keywords = ${keywordsPg}::text[],
       updated_at = now()
   `);
 
