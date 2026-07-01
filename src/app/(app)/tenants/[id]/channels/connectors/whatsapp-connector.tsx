@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { createEvolutionInstance, deleteEvolutionInstance } from "@/app/actions/evolution";
+import { createEvolutionInstance, deleteEvolutionInstance, registerEvolutionWebhook } from "@/app/actions/evolution";
 import { saveChannelConfig } from "@/app/actions/channels";
 import { QrCode, Trash2, RefreshCw, CheckCircle, Loader2 } from "lucide-react";
 import type { CompanyChannel } from "@/db/schema";
@@ -21,7 +21,11 @@ export function WhatsAppConnector({ companyId, instanceName, channel }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { checkStatus(); }, []);
+  useEffect(() => {
+    checkStatus();
+    // Garante que o webhook está registrado na instância existente
+    registerEvolutionWebhook(instanceName).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (status !== "connecting") return;
@@ -44,6 +48,7 @@ export function WhatsAppConnector({ companyId, instanceName, channel }: Props) {
   async function handleConnect() {
     setLoading(true);
     await createEvolutionInstance(instanceName);
+    await registerEvolutionWebhook(instanceName);
     await saveChannelConfig(companyId, "whatsapp", { instanceName });
     setStatus("connecting");
     setTimeout(checkStatus, 2000);

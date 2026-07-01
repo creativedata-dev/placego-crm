@@ -1,7 +1,7 @@
 "use server";
 
 import { requireRole } from "@/lib/auth";
-import { createInstance, deleteInstance } from "@/lib/evolution";
+import { createInstance, deleteInstance, setInstanceWebhook } from "@/lib/evolution";
 
 export async function createEvolutionInstance(instanceName: string) {
   await requireRole(["admin_placego"]);
@@ -11,4 +11,9 @@ export async function createEvolutionInstance(instanceName: string) {
 export async function deleteEvolutionInstance(instanceName: string) {
   await requireRole(["admin_placego"]);
   return deleteInstance(instanceName);
+}
+
+export async function registerEvolutionWebhook(instanceName: string) {
+  await requireRole(["admin_placego"]);
+  return setInstanceWebhook(instanceName);
 }
