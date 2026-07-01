@@ -60,6 +60,18 @@ export async function putLeadOnWait(leadId: string) {
   revalidatePath("/sdr/queue");
 }
 
+export async function updateContactData(
+  contactId: string,
+  data: { name?: string; phone?: string; email?: string; notes?: string }
+) {
+  await requireRole(["sdr", "admin_placego"]);
+  await db
+    .update(leads)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(leads.id, contactId));
+  revalidatePath(`/sdr/contacts/${contactId}`);
+}
+
 export async function createManualLead(formData: FormData) {
   await requireRole(["sdr", "admin_placego"]);
 

@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { ContactTimeline } from "./contact-timeline";
 import { ContactReply } from "./contact-reply";
+import { ContactEditForm } from "./contact-edit-form";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
 import { ContactStatusActions } from "./contact-status-actions";
@@ -164,50 +165,46 @@ export default async function ContactDetailPage({
 
         {/* Painel lateral — 1/3 */}
         <div className="space-y-4">
-          <div className="border rounded-xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold">Dados do contato</h3>
-            <div className="space-y-2 text-sm">
-              {c.phone && (
+          <div className="border rounded-xl p-4">
+            <ContactEditForm
+              contactId={id}
+              name={c.name}
+              phone={c.phone}
+              email={c.email}
+              notes={c.notes ?? null}
+            />
+            {(tenantName || c.campaignId || c.adsetName || c.formName) && (
+              <div className="mt-3 pt-3 border-t space-y-2 text-sm">
                 <div className="flex gap-2">
-                  <span className="text-muted-foreground w-16 shrink-0">Telefone</span>
-                  <span className="font-medium">{c.phone}</span>
+                  <span className="text-muted-foreground w-16 shrink-0">Origem</span>
+                  <span className="font-medium">{ORIGIN_ICONS[c.origin]} {ORIGIN_LABELS[c.origin]}</span>
                 </div>
-              )}
-              {c.email && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground w-16 shrink-0">Email</span>
-                  <span className="font-medium truncate">{c.email}</span>
-                </div>
-              )}
-              {tenantName && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground w-16 shrink-0">Empresa</span>
-                  <span className="font-medium">{tenantName}</span>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <span className="text-muted-foreground w-16 shrink-0">Origem</span>
-                <span className="font-medium">{ORIGIN_ICONS[c.origin]} {ORIGIN_LABELS[c.origin]}</span>
+                {tenantName && (
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground w-16 shrink-0">Empresa</span>
+                    <span className="font-medium">{tenantName}</span>
+                  </div>
+                )}
+                {c.campaignId && (
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground w-16 shrink-0">Campanha</span>
+                    <span className="font-medium truncate">{c.adName ?? c.campaignId}</span>
+                  </div>
+                )}
+                {c.adsetName && (
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground w-16 shrink-0">Conjunto</span>
+                    <span className="font-medium">{c.adsetName}</span>
+                  </div>
+                )}
+                {c.formName && (
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground w-16 shrink-0">Formulário</span>
+                    <span className="font-medium">{c.formName}</span>
+                  </div>
+                )}
               </div>
-              {c.campaignId && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground w-16 shrink-0">Campanha</span>
-                  <span className="font-medium truncate">{c.adName ?? c.campaignId}</span>
-                </div>
-              )}
-              {c.adsetName && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground w-16 shrink-0">Conjunto</span>
-                  <span className="font-medium">{c.adsetName}</span>
-                </div>
-              )}
-              {c.formName && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground w-16 shrink-0">Formulário</span>
-                  <span className="font-medium">{c.formName}</span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Score detalhado */}
