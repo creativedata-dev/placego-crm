@@ -22,19 +22,12 @@ async function evo(path: string, options: RequestInit = {}) {
 // ── Instâncias ────────────────────────────────────────────────────────────────
 
 export async function createInstance(instanceName: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.placego.com.br";
   return evo("/instance/create", {
     method: "POST",
     body: JSON.stringify({
       instanceName,
       integration: "WHATSAPP-BAILEYS",
       qrcode: true,
-      webhook: {
-        url: `${appUrl}/api/evolution/webhook`,
-        byEvents: true,
-        base64: false,
-        events: ["MESSAGES_UPSERT"],
-      },
     }),
   });
 }
