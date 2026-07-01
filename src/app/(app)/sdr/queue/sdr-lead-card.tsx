@@ -40,7 +40,7 @@ interface Props {
   tags: Tag[];
   brokerNames: string[];
   isAdmin: boolean;
-  onDragStart: () => void;
+  onDragStart?: () => void;
   onDragEnd: () => void;
 }
 
@@ -63,10 +63,10 @@ export function SdrLeadCard({
 
   return (
     <div
-      draggable
+      draggable={!!onDragStart}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className="bg-background border rounded-lg p-3 cursor-grab active:cursor-grabbing shadow-xs hover:shadow-sm transition-shadow space-y-2"
+      className={`bg-background border rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow space-y-2 ${onDragStart ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
     >
       <div className="flex items-start justify-between gap-1">
         <a href={`/sdr/contacts/${contact.id}`} className="font-semibold text-sm leading-tight hover:underline hover:text-primary">

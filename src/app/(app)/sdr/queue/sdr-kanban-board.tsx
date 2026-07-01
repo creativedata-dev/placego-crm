@@ -30,7 +30,9 @@ interface Props {
   isAdmin: boolean;
 }
 
-const NON_DRAGGABLE_TARGET = new Set(["distribuido"]); // só via tela de routing
+// "distribuido" só é definido pelo sistema via tela de routing — não pode ser destino nem origem de drag
+const NON_DRAGGABLE_TARGET = new Set(["distribuido"]);
+const NON_DRAGGABLE_SOURCE = new Set(["distribuido"]);
 
 export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
   const [columns, setColumns] = useState(initialColumns);
@@ -108,7 +110,7 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
                 key={card.assignment.id}
                 {...card}
                 isAdmin={isAdmin}
-                onDragStart={() => handleDragStart(card.assignment.id)}
+                onDragStart={NON_DRAGGABLE_SOURCE.has(col.id) ? undefined : () => handleDragStart(card.assignment.id)}
                 onDragEnd={() => setDragging(null)}
               />
             ))}
