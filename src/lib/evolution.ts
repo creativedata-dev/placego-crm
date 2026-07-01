@@ -54,6 +54,7 @@ export async function setInstanceWebhook(instanceName: string) {
     method: "POST",
     body: JSON.stringify({
       webhook: {
+        enabled: true,
         url: `${appUrl}/api/evolution/webhook`,
         byEvents: true,
         base64: false,
