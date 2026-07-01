@@ -32,8 +32,8 @@ interface Props {
 }
 
 // "distribuido" só é definido pelo sistema via tela de routing — não pode ser destino nem origem de drag
-const NON_DRAGGABLE_TARGET = new Set(["distribuido"]);
-const NON_DRAGGABLE_SOURCE = new Set(["distribuido"]);
+const NON_DRAGGABLE_TARGET = new Set(["distribuido", "arquivado"]);
+const NON_DRAGGABLE_SOURCE = new Set(["distribuido", "arquivado"]);
 
 export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
   // overrides: mapa assignmentId → colId para atualização otimista do drag

@@ -17,7 +17,7 @@ export const leadOriginEnum = pgEnum("lead_origin", [
 ]);
 
 export const sdrAssignmentStatusEnum = pgEnum("sdr_assignment_status", [
-  "novo", "em_contato", "aguardando", "qualificado", "distribuido", "invalido",
+  "novo", "em_contato", "aguardando", "qualificado", "distribuido", "invalido", "arquivado",
 ]);
 
 export const assignmentStatusEnum = pgEnum("assignment_status", [

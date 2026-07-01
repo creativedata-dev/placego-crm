@@ -53,7 +53,7 @@ export async function markMessagesAsRead(contactId: string) {
 
 export async function updateSdrAssignmentStatus(
   assignmentId: string,
-  status: "novo" | "em_contato" | "aguardando" | "qualificado" | "distribuido" | "invalido",
+  status: "novo" | "em_contato" | "aguardando" | "qualificado" | "distribuido" | "invalido" | "arquivado",
   notes?: string
 ) {
   await requireRole(["sdr", "admin_placego"]);

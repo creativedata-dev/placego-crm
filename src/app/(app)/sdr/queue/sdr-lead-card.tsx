@@ -7,7 +7,7 @@ import { ScoreBadge } from "./score-badge";
 import { TagPicker } from "@/components/tags/tag-picker";
 import { updateSdrAssignmentStatus } from "@/app/actions/contacts";
 import type { SdrAssignment, Lead, Tag } from "@/db/schema";
-import { CheckCircle, Share2, ChevronRight } from "lucide-react";
+import { CheckCircle, Share2, Archive } from "lucide-react";
 import Link from "next/link";
 
 const ORIGIN_LABELS: Record<string, string> = {
@@ -60,6 +60,11 @@ export function SdrLeadCard({
 
   function qualify() {
     startTransition(() => updateSdrAssignmentStatus(assignment.id, "qualificado"));
+  }
+
+  function archive() {
+    if (!confirm("Arquivar este lead? Ele sairá do kanban mas ficará no histórico.")) return;
+    startTransition(() => updateSdrAssignmentStatus(assignment.id, "arquivado"));
   }
 
   return (
@@ -145,6 +150,17 @@ export function SdrLeadCard({
               title="Distribuir"
             >
               <Share2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {assignment.status === "distribuido" && (
+            <Button
+              size="sm" variant="ghost"
+              className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
+              onClick={archive}
+              disabled={isPending}
+              title="Arquivar"
+            >
+              <Archive className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
