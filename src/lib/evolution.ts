@@ -56,7 +56,7 @@ export async function setInstanceWebhook(instanceName: string) {
       webhook: {
         enabled: true,
         url: `${appUrl}/api/evolution/webhook`,
-        byEvents: true,
+        byEvents: false,
         base64: false,
         events: ["MESSAGES_UPSERT"],
       },
