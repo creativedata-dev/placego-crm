@@ -35,10 +35,22 @@ const NON_DRAGGABLE_TARGET = new Set(["distribuido"]);
 const NON_DRAGGABLE_SOURCE = new Set(["distribuido"]);
 
 export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
-  const [columns, setColumns] = useState(initialColumns);
+  // overrides: mapa assignmentId → colId para atualização otimista do drag
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Aplica overrides sobre as colunas vindas do servidor
+  const columns = initialColumns.map((col) => ({
+    ...col,
+    cards: [
+      ...col.cards.filter((c) => !overrides[c.assignment.id] || overrides[c.assignment.id] === col.id),
+      ...initialColumns.flatMap((c) => c.cards).filter(
+        (c) => overrides[c.assignment.id] === col.id && !col.cards.find((x) => x.assignment.id === c.assignment.id)
+      ),
+    ],
+  }));
 
   function handleDragStart(assignmentId: string) {
     setDragging(assignmentId);
@@ -52,27 +64,15 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
       return;
     }
 
-    let card: CardData | undefined;
-    const next = columns.map((col) => {
-      const found = col.cards.find((c) => c.assignment.id === dragging);
-      if (found) card = found;
-      return { ...col, cards: col.cards.filter((c) => c.assignment.id !== dragging) };
-    });
-
+    const card = initialColumns.flatMap((c) => c.cards).find((c) => c.assignment.id === dragging);
     if (!card) return;
 
-    const updated = next.map((col) =>
-      col.id === targetColId
-        ? { ...col, cards: [...col.cards, { ...card!, assignment: { ...card!.assignment, status: targetColId as any } }] }
-        : col
-    );
-
-    setColumns(updated);
+    setOverrides((prev) => ({ ...prev, [dragging]: targetColId }));
     setDragging(null);
     setDragOver(null);
 
     startTransition(() => {
-      updateSdrAssignmentStatus(card!.assignment.id, targetColId as any);
+      updateSdrAssignmentStatus(card.assignment.id, targetColId as any);
     });
   }
 
