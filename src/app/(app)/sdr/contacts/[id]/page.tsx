@@ -105,7 +105,13 @@ export default async function ContactDetailPage({
 
   const { contact: c, tenantName, tenantSlug, propertyAddress } = contact;
   const assignmentStatus = assignment?.assignment.status ?? "novo";
-  const scoreColor = (c.qualityScore ?? 0) >= 70 ? "text-green-600" : (c.qualityScore ?? 0) >= 40 ? "text-yellow-600" : "text-red-500";
+  // Recalcular score dinamicamente com base nos campos reais (banco pode estar desatualizado)
+  const score = (c.name && c.name !== "Sem nome" ? 20 : 0)
+    + (c.phone ? 30 : 0)
+    + (c.email ? 20 : 0)
+    + (c.campaignId ? 15 : 0)
+    + (c.utmSource || c.adName ? 15 : 0);
+  const scoreColor = score >= 70 ? "text-green-600" : score >= 40 ? "text-yellow-600" : "text-red-500";
 
   // Canal de resposta padrão baseado na origem
   const defaultReplyChannel = c.origin === "email" ? "email" : "whatsapp";
@@ -123,7 +129,7 @@ export default async function ContactDetailPage({
               {ORIGIN_ICONS[c.origin]} {ORIGIN_LABELS[c.origin] ?? c.origin}
             </Badge>
             <span className={`text-sm font-semibold ${scoreColor}`}>
-              Score {c.qualityScore ?? 0}
+              Score {score}
             </span>
           </div>
           <div className="flex gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
@@ -223,13 +229,13 @@ export default async function ContactDetailPage({
           <div className="border rounded-xl p-4 space-y-2">
             <h3 className="text-sm font-semibold">Score de qualidade</h3>
             <div className="flex items-end gap-2">
-              <span className={`text-3xl font-bold ${scoreColor}`}>{c.qualityScore ?? 0}</span>
+              <span className={`text-3xl font-bold ${scoreColor}`}>{score}</span>
               <span className="text-muted-foreground text-sm mb-1">/ 100</span>
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full ${(c.qualityScore ?? 0) >= 70 ? "bg-green-500" : (c.qualityScore ?? 0) >= 40 ? "bg-yellow-500" : "bg-red-400"}`}
-                style={{ width: `${c.qualityScore ?? 0}%` }}
+                className={`h-full rounded-full ${score >= 70 ? "bg-green-500" : score >= 40 ? "bg-yellow-500" : "bg-red-400"}`}
+                style={{ width: `${score}%` }}
               />
             </div>
             <div className="space-y-1 pt-1">

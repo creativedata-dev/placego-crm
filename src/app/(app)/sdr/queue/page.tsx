@@ -87,13 +87,19 @@ export default async function SDRQueuePage({
         .select({ leadId: leadAssignments.leadId, brokerId: users.id, brokerName: users.name })
         .from(leadAssignments)
         .innerJoin(users, eq(leadAssignments.brokerId, users.id))
-        .where(inArray(leadAssignments.leadId, distributedIds))
+        .where(and(
+          inArray(leadAssignments.leadId, distributedIds),
+          inArray(leadAssignments.status, ["new", "contacted", "visiting", "proposal"]),
+        ))
     : [];
 
   const brokersByContact = new Map<string, { id: string; name: string }[]>();
   for (const row of brokerRows) {
     const list = brokersByContact.get(row.leadId) ?? [];
-    list.push({ id: row.brokerId, name: row.brokerName });
+    // deduplicar por brokerId
+    if (!list.find((b) => b.id === row.brokerId)) {
+      list.push({ id: row.brokerId, name: row.brokerName });
+    }
     brokersByContact.set(row.leadId, list);
   }
 
