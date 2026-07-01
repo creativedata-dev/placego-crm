@@ -19,6 +19,25 @@ interface Props {
   origin: string;
 }
 
+function MessageContent({ content, channel, isOut }: { content: string; channel: string; isOut: boolean }) {
+  if (channel === "email") {
+    const sep = content.indexOf("\n\n");
+    if (sep > 0) {
+      const subject = content.slice(0, sep).trim();
+      const body = content.slice(sep + 2).trim();
+      return (
+        <div className="space-y-1.5">
+          <p className={`font-semibold text-xs uppercase tracking-wide ${isOut ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+            {subject}
+          </p>
+          <p className="whitespace-pre-wrap">{body}</p>
+        </div>
+      );
+    }
+  }
+  return <p className="whitespace-pre-wrap">{content}</p>;
+}
+
 export function ContactTimeline({ messages, origin }: Props) {
   if (messages.length === 0) {
     return (
@@ -56,7 +75,7 @@ export function ContactTimeline({ messages, origin }: Props) {
                   ? "bg-primary text-primary-foreground rounded-tr-sm"
                   : "bg-background border rounded-tl-sm"
               }`}>
-                {msg.content}
+                <MessageContent content={msg.content} channel={msg.channel} isOut={isOut} />
               </div>
             </div>
           </div>
