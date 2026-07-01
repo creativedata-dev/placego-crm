@@ -57,6 +57,7 @@ export default async function ContactDetailPage({
     .select({
       contact: leads,
       tenantName: tenants.name,
+      tenantSlug: tenants.slug,
       propertyAddress: properties.address,
     })
     .from(leads)
@@ -91,7 +92,7 @@ export default async function ContactDetailPage({
     .innerJoin(tags, eq(contactTags.tagId, tags.id))
     .where(eq(contactTags.contactId, id));
 
-  const { contact: c, tenantName, propertyAddress } = contact;
+  const { contact: c, tenantName, tenantSlug, propertyAddress } = contact;
   const assignmentStatus = assignment?.assignment.status ?? "novo";
   const scoreColor = (c.qualityScore ?? 0) >= 70 ? "text-green-600" : (c.qualityScore ?? 0) >= 40 ? "text-yellow-600" : "text-red-500";
 
@@ -157,7 +158,7 @@ export default async function ContactDetailPage({
             contactEmail={c.email}
             contactName={c.name}
             defaultChannel={defaultReplyChannel}
-            tenantSlug={tenantName ? `placego-${tenantName.toLowerCase().replace(/\s+/g, "-")}` : null}
+            tenantSlug={tenantSlug ? `placego-${tenantSlug}` : null}
           />
         </div>
 
