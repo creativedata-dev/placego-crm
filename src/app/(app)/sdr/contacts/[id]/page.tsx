@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { leads, sdrAssignments, contactMessages, users, tenants, properties, tags, contactTags } from "@/db/schema";
+import { leads, sdrAssignments, contactMessages, users, tenants, properties, tags, contactTags, leadAssignments } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { markMessagesAsRead } from "@/app/actions/contacts";
@@ -82,6 +82,15 @@ export default async function ContactDetailPage({
     .orderBy(desc(sdrAssignments.assignedAt))
     .limit(1);
 
+  // Buscar corretor atribuído (se distribuído)
+  const [brokerAssignment] = await db
+    .select({ brokerName: users.name, brokerId: users.id })
+    .from(leadAssignments)
+    .innerJoin(users, eq(leadAssignments.brokerId, users.id))
+    .where(eq(leadAssignments.leadId, id))
+    .orderBy(desc(leadAssignments.assignedAt))
+    .limit(1);
+
   // Buscar mensagens (timeline)
   const messages = await db
     .select({ msg: contactMessages, sdrName: users.name })
@@ -136,6 +145,7 @@ export default async function ContactDetailPage({
             assignmentId={assignment.assignment.id}
             contactId={id}
             currentStatus={assignmentStatus}
+            brokerName={brokerAssignment?.brokerName ?? null}
           />
         )}
       </div>
