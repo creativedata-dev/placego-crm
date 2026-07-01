@@ -53,10 +53,12 @@ export async function setInstanceWebhook(instanceName: string) {
   return evo(`/webhook/set/${instanceName}`, {
     method: "POST",
     body: JSON.stringify({
-      url: `${appUrl}/api/evolution/webhook`,
-      byEvents: true,
-      base64: false,
-      events: ["MESSAGES_UPSERT"],
+      webhook: {
+        url: `${appUrl}/api/evolution/webhook`,
+        byEvents: true,
+        base64: false,
+        events: ["MESSAGES_UPSERT"],
+      },
     }),
   });
 }
