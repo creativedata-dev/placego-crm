@@ -1,7 +1,7 @@
 import { db } from "@/db";
-import { leads, sdrAssignments, properties, tenants, users, tags, contactTags, leadAssignments } from "@/db/schema";
+import { leads, sdrAssignments, properties, tenants, users, tags, contactTags, leadAssignments, contactMessages } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, isNull, and, count } from "drizzle-orm";
 import { QueueFilters } from "./queue-filters";
 import { AddContactButton } from "./add-contact-button";
 import { SdrKanbanBoard } from "./sdr-kanban-board";
@@ -44,8 +44,24 @@ export default async function SDRQueuePage({
     .where(targetSdrId ? eq(sdrAssignments.sdrId, targetSdrId) : undefined)
     .orderBy(desc(leads.createdAt));
 
-  // Buscar tags de todos os contatos visíveis
+  // Buscar mensagens não lidas por contato
   const contactIds = rows.map((r) => r.contact.id);
+
+  const unreadRows = contactIds.length > 0
+    ? await db
+        .select({ contactId: contactMessages.contactId, cnt: count() })
+        .from(contactMessages)
+        .where(and(
+          inArray(contactMessages.contactId, contactIds),
+          eq(contactMessages.direction, "in"),
+          isNull(contactMessages.readAt),
+        ))
+        .groupBy(contactMessages.contactId)
+    : [];
+
+  const unreadByContact = new Map(unreadRows.map((r) => [r.contactId, Number(r.cnt)]));
+
+  // Buscar tags de todos os contatos visíveis
   const tagRows = contactIds.length > 0
     ? await db
         .select({ contactId: contactTags.contactId, tag: tags })
@@ -110,6 +126,7 @@ export default async function SDRQueuePage({
         ...r,
         tags: tagsByContact.get(r.contact.id) ?? [],
         brokerNames: (brokersByContact.get(r.contact.id) ?? []).map((b) => b.name),
+        unreadCount: unreadByContact.get(r.contact.id) ?? 0,
       })),
   }));
 

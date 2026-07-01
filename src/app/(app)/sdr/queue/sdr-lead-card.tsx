@@ -39,6 +39,7 @@ interface Props {
   sdrName: string | null;
   tags: Tag[];
   brokerNames: string[];
+  unreadCount: number;
   isAdmin: boolean;
   onDragStart?: () => void;
   onDragEnd: () => void;
@@ -46,7 +47,7 @@ interface Props {
 
 export function SdrLeadCard({
   assignment, contact, propertyAddress, propertyNeighborhood, tenantName, sdrName, tags, brokerNames,
-  isAdmin, onDragStart, onDragEnd,
+  unreadCount, isAdmin, onDragStart, onDragEnd,
 }: Props) {
   const [isPending, startTransition] = useTransition();
 
@@ -69,8 +70,13 @@ export function SdrLeadCard({
       className={`bg-background border rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow space-y-2 ${onDragStart ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
     >
       <div className="flex items-start justify-between gap-1">
-        <a href={`/sdr/contacts/${contact.id}`} className="font-semibold text-sm leading-tight hover:underline hover:text-primary">
+        <a href={`/sdr/contacts/${contact.id}`} className="font-semibold text-sm leading-tight hover:underline hover:text-primary flex items-center gap-1.5">
           {contact.name}
+          {unreadCount > 0 && (
+            <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
+              {unreadCount}
+            </span>
+          )}
         </a>
         <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{ageLabel}</span>
       </div>

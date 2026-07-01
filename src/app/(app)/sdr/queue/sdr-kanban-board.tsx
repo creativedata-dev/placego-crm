@@ -16,6 +16,7 @@ type CardData = {
   sdrName: string | null;
   tags: Tag[];
   brokerNames: string[];
+  unreadCount: number;
 };
 
 type ColumnData = {

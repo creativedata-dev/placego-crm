@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { leads, sdrAssignments, contactMessages, users, tenants, properties, tags, contactTags } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
+import { markMessagesAsRead } from "@/app/actions/contacts";
 import { ContactTimeline } from "./contact-timeline";
 import { ContactReply } from "./contact-reply";
 import { ContactEditForm } from "./contact-edit-form";
@@ -68,6 +69,9 @@ export default async function ContactDetailPage({
     .limit(1);
 
   if (!contact) notFound();
+
+  // Marcar mensagens inbound como lidas ao abrir o contato
+  await markMessagesAsRead(id);
 
   // Buscar assignment do SDR
   const [assignment] = await db

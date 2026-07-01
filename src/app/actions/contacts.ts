@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { leads, sdrAssignments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { leads, sdrAssignments, contactMessages } from "@/db/schema";
+import { eq, and, isNull } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 
@@ -39,6 +39,15 @@ export async function createContact(formData: FormData) {
   // Round-robin: atribuir ao próximo SDR
   await assignContactToNextSdr(contact.id);
 
+  revalidatePath("/sdr/queue");
+}
+
+export async function markMessagesAsRead(contactId: string) {
+  await requireRole(["sdr", "admin_placego"]);
+  await db
+    .update(contactMessages)
+    .set({ readAt: new Date() })
+    .where(and(eq(contactMessages.contactId, contactId), eq(contactMessages.direction, "in"), isNull(contactMessages.readAt)));
   revalidatePath("/sdr/queue");
 }
 
