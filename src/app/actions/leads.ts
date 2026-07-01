@@ -60,14 +60,29 @@ export async function putLeadOnWait(leadId: string) {
   revalidatePath("/sdr/queue");
 }
 
+function calcScore(fields: { name?: string | null; phone?: string | null; email?: string | null; campaignId?: string | null; utmSource?: string | null; adName?: string | null }) {
+  let s = 0;
+  if (fields.name && fields.name !== "Sem nome") s += 20;
+  if (fields.phone) s += 30;
+  if (fields.email) s += 20;
+  if (fields.campaignId) s += 15;
+  if (fields.utmSource || fields.adName) s += 15;
+  return s;
+}
+
 export async function updateContactData(
   contactId: string,
   data: { name?: string; phone?: string; email?: string; notes?: string }
 ) {
   await requireRole(["sdr", "admin_placego"]);
+
+  const [current] = await db.select().from(leads).where(eq(leads.id, contactId)).limit(1);
+  const merged = { ...current, ...data };
+  const qualityScore = calcScore(merged);
+
   await db
     .update(leads)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, qualityScore, updatedAt: new Date() })
     .where(eq(leads.id, contactId));
   revalidatePath(`/sdr/contacts/${contactId}`);
 }

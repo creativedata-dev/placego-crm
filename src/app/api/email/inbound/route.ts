@@ -60,7 +60,8 @@ export async function POST(request: Request) {
       return cfg?.address && toAddress?.toLowerCase().includes(cfg.address.toLowerCase());
     });
 
-    const score = 60 + (fromName && fromName !== fromEmail.split("@")[0] ? 20 : 0);
+    const hasRealName = !!fromName && fromName !== fromEmail.split("@")[0];
+    const score = (hasRealName ? 20 : 0) + 20;
     const messageContent = subject ? `${subject}\n\n${text}` : text;
 
     const result = await ingestContactMessage({
