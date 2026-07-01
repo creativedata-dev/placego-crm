@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { leads, sdrAssignments, contactMessages, users, tenants, properties, tags, contactTags, leadAssignments } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
-import { markMessagesAsRead } from "@/app/actions/contacts";
+import { MarkRead } from "./mark-read";
 import { ContactTimeline } from "./contact-timeline";
 import { ContactReply } from "./contact-reply";
 import { ContactEditForm } from "./contact-edit-form";
@@ -70,9 +70,6 @@ export default async function ContactDetailPage({
 
   if (!contact) notFound();
 
-  // Marcar mensagens inbound como lidas ao abrir o contato
-  await markMessagesAsRead(id);
-
   // Buscar assignment do SDR
   const [assignment] = await db
     .select({ assignment: sdrAssignments, sdrName: users.name })
@@ -115,6 +112,7 @@ export default async function ContactDetailPage({
 
   return (
     <div className="max-w-5xl space-y-4">
+      <MarkRead contactId={id} />
       {/* Header */}
       <div className="flex items-start gap-3">
         <BackButton label="← Fila" />
