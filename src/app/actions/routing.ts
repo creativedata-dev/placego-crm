@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { leads, leadAssignments, users, tenants, sdrAssignments } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and, notInArray } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { sendLeadAssignedEmail } from "@/lib/email";
@@ -33,15 +33,29 @@ export async function assignLeadToBrokers(
     })
     .where(eq(leads.id, leadId));
 
-  // Cria um assignment por corretor
-  await db.insert(leadAssignments).values(
-    brokerIds.map((brokerId) => ({
-      leadId,
-      brokerId,
-      assignedBySdrId: user.id,
-      notes: notes ?? null,
-    }))
-  );
+  // Cancela assignments anteriores que não estão na nova lista
+  await db
+    .update(leadAssignments)
+    .set({ status: "lost", updatedAt: new Date() })
+    .where(and(eq(leadAssignments.leadId, leadId), notInArray(leadAssignments.brokerId, brokerIds)));
+
+  // Cria assignments apenas para corretores que ainda não têm um ativo
+  const existing = await db
+    .select({ brokerId: leadAssignments.brokerId })
+    .from(leadAssignments)
+    .where(and(eq(leadAssignments.leadId, leadId), inArray(leadAssignments.brokerId, brokerIds)));
+  const existingIds = new Set(existing.map((e) => e.brokerId));
+  const newBrokerIds = brokerIds.filter((id) => !existingIds.has(id));
+  if (newBrokerIds.length > 0) {
+    await db.insert(leadAssignments).values(
+      newBrokerIds.map((brokerId) => ({
+        leadId,
+        brokerId,
+        assignedBySdrId: user.id,
+        notes: notes ?? null,
+      }))
+    );
+  }
 
   // Move o sdr_assignment para "distribuido"
   await db
