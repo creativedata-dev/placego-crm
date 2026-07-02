@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { leadAssignments, leads, users, leadActivities, contactMessages } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { leadAssignments, leads, users, leadActivities, contactMessages, sdrAssignments } from "@/db/schema";
+import { eq, desc, and } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { BackButton } from "@/components/ui/back-button";
 import { Badge } from "@/components/ui/badge";
-import { ActivityForm } from "./activity-form";
+import { NoteForm } from "./note-form";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Novo", contacted: "Contatado", visiting: "Visita Agendada",
@@ -13,15 +13,14 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const ORIGIN_LABELS: Record<string, string> = {
-  meta_leadgen: "Lead Ads", meta_dm_instagram: "Instagram DM",
-  meta_dm_facebook: "Facebook DM", whatsapp: "WhatsApp",
-  email: "Email", lp: "Landing Page", indicacao: "Indicação",
-  manual: "Manual", portal: "Portal",
+  meta_leadgen: "Lead Ads", meta_ads: "Meta Ads", meta_dm_instagram: "Instagram DM",
+  meta_dm_facebook: "Facebook DM", meta_comment: "Comentário", whatsapp: "WhatsApp",
+  email: "Email", lp: "Landing Page", indicacao: "Indicação", manual: "Manual", portal: "Portal",
 };
 
 const ACTIVITY_LABELS: Record<string, string> = {
   call: "📞 Ligação", whatsapp: "💬 WhatsApp", email: "✉️ Email",
-  visit: "📍 Visita", note: "📝 Anotação",
+  visit: "📍 Visita", note: "📝 Nota",
 };
 
 export default async function PipelineDetailPage({ params }: { params: Promise<{ assignmentId: string }> }) {
@@ -29,11 +28,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
   const { assignmentId } = await params;
 
   const [row] = await db
-    .select({
-      assignment: leadAssignments,
-      lead: leads,
-      brokerName: users.name,
-    })
+    .select({ assignment: leadAssignments, lead: leads, brokerName: users.name })
     .from(leadAssignments)
     .innerJoin(leads, eq(leadAssignments.leadId, leads.id))
     .innerJoin(users, eq(leadAssignments.brokerId, users.id))
@@ -45,25 +40,71 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
   const isAdmin = user.role === "admin_placego" || user.role === "sdr";
   if (!isAdmin && row.assignment.brokerId !== user.id) notFound();
 
-  const [activities, messages] = await Promise.all([
-    db
-      .select({ activity: leadActivities, userName: users.name })
-      .from(leadActivities)
-      .innerJoin(users, eq(leadActivities.userId, users.id))
-      .where(eq(leadActivities.leadAssignmentId, assignmentId))
-      .orderBy(desc(leadActivities.createdAt)),
-    db
-      .select()
-      .from(contactMessages)
-      .where(eq(contactMessages.contactId, row.lead.id))
-      .orderBy(desc(contactMessages.sentAt))
-      .limit(10),
-  ]);
-
   const { lead, assignment, brokerName } = row;
+
+  // Buscar atividades do corretor
+  const activities = await db
+    .select({ activity: leadActivities, userName: users.name })
+    .from(leadActivities)
+    .innerJoin(users, eq(leadActivities.userId, users.id))
+    .where(eq(leadActivities.leadAssignmentId, assignmentId))
+    .orderBy(desc(leadActivities.createdAt));
+
+  // Buscar notas do SDR (mensagens internas + nota do assignment)
+  const [sdrAssignment] = await db
+    .select({ assignment: sdrAssignments, sdrName: users.name })
+    .from(sdrAssignments)
+    .leftJoin(users, eq(sdrAssignments.sdrId, users.id))
+    .where(eq(sdrAssignments.contactId, lead.id))
+    .orderBy(desc(sdrAssignments.assignedAt))
+    .limit(1);
+
+  // Mensagens de canal (WhatsApp, email) para contexto
+  const messages = await db
+    .select({ msg: contactMessages, sdrName: users.name })
+    .from(contactMessages)
+    .leftJoin(users, eq(contactMessages.sdrId, users.id))
+    .where(and(eq(contactMessages.contactId, lead.id), eq(contactMessages.direction, "in")))
+    .orderBy(desc(contactMessages.sentAt))
+    .limit(5);
+
   const score = (lead.name && lead.name !== "Sem nome" ? 20 : 0)
     + (lead.phone ? 30 : 0) + (lead.email ? 20 : 0)
     + (lead.campaignId ? 15 : 0) + (lead.utmSource || lead.adName ? 15 : 0);
+
+  // Timeline unificada: atividades do corretor + nota do SDR
+  type TimelineItem =
+    | { kind: "activity"; id: string; label: string; notes: string | null; userName: string; date: Date }
+    | { kind: "sdr_note"; id: string; notes: string; sdrName: string | null; date: Date }
+    | { kind: "message"; id: string; content: string; channel: string; sdrName: string | null; date: Date };
+
+  const timeline: TimelineItem[] = [
+    ...activities.map(({ activity, userName }) => ({
+      kind: "activity" as const,
+      id: activity.id,
+      label: ACTIVITY_LABELS[activity.type] ?? activity.type,
+      notes: activity.notes,
+      userName,
+      date: new Date(activity.createdAt),
+    })),
+    ...(sdrAssignment?.assignment.notes
+      ? [{
+          kind: "sdr_note" as const,
+          id: sdrAssignment.assignment.id,
+          notes: sdrAssignment.assignment.notes,
+          sdrName: sdrAssignment.sdrName ?? null,
+          date: new Date(sdrAssignment.assignment.updatedAt),
+        }]
+      : []),
+    ...messages.map(({ msg, sdrName }) => ({
+      kind: "message" as const,
+      id: msg.id,
+      content: msg.content,
+      channel: msg.channel,
+      sdrName: sdrName ?? null,
+      date: new Date(msg.sentAt),
+    })),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -75,7 +116,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      {/* Status + info */}
+      {/* Dados do lead */}
       <div className="rounded-xl border p-4 space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge>{STATUS_LABELS[assignment.status] ?? assignment.status}</Badge>
@@ -100,23 +141,10 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
           {lead.campaignId && (
             <div>
               <p className="text-xs text-muted-foreground">Campanha</p>
-              <p className="font-medium">{lead.campaignId}</p>
-            </div>
-          )}
-          {lead.adName && (
-            <div>
-              <p className="text-xs text-muted-foreground">Anúncio</p>
-              <p className="font-medium">{lead.adName}</p>
+              <p className="font-medium">{lead.adName ?? lead.campaignId}</p>
             </div>
           )}
         </div>
-
-        {lead.notes && (
-          <div>
-            <p className="text-xs text-muted-foreground">Observações</p>
-            <p className="text-sm whitespace-pre-wrap">{lead.notes}</p>
-          </div>
-        )}
 
         {assignment.lossReason && (
           <div>
@@ -126,49 +154,59 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
         )}
       </div>
 
-      {/* Registrar atividade */}
-      <ActivityForm assignmentId={assignmentId} />
+      {/* Adicionar nota/atividade */}
+      <NoteForm assignmentId={assignmentId} />
 
-      {/* Timeline de atividades */}
-      {activities.length > 0 && (
+      {/* Timeline unificada */}
+      {timeline.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Histórico</h2>
           <div className="space-y-2">
-            {activities.map(({ activity, userName }) => (
-              <div key={activity.id} className="flex gap-3 text-sm border rounded-lg p-3">
-                <span className="shrink-0">{ACTIVITY_LABELS[activity.type] ?? activity.type}</span>
-                <div className="flex-1 min-w-0">
-                  {activity.notes && <p className="text-sm">{activity.notes}</p>}
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {userName} · {new Date(activity.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </p>
+            {timeline.map((item) => {
+              if (item.kind === "activity") {
+                return (
+                  <div key={item.id} className="flex gap-3 text-sm border rounded-lg p-3">
+                    <span className="shrink-0 text-base">{item.label.split(" ")[0]}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground">{item.label.split(" ").slice(1).join(" ")} · corretor</p>
+                      {item.notes && <p className="text-sm mt-0.5 whitespace-pre-wrap">{item.notes}</p>}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.userName} · {item.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              if (item.kind === "sdr_note") {
+                return (
+                  <div key={item.id} className="flex gap-3 text-sm border rounded-lg p-3 bg-blue-50/40">
+                    <span className="shrink-0 text-base">📋</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-blue-600">Nota do SDR</p>
+                      <p className="text-sm mt-0.5 whitespace-pre-wrap">{item.notes}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.sdrName ?? "SDR"} · {item.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              // message
+              return (
+                <div key={item.id} className="flex gap-3 text-sm border rounded-lg p-3 bg-muted/30">
+                  <span className="shrink-0 text-base">
+                    {item.channel === "whatsapp" ? "💬" : item.channel === "email" ? "✉️" : "📨"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground capitalize">{item.channel} recebido</p>
+                    <p className="text-sm mt-0.5 whitespace-pre-wrap line-clamp-3">{item.content}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {item.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Últimas mensagens */}
-      {messages.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Últimas mensagens</h2>
-          <div className="space-y-2">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`text-sm rounded-lg p-3 max-w-[85%] ${
-                  msg.direction === "out"
-                    ? "ml-auto bg-primary text-primary-foreground"
-                    : "bg-muted"
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-                <p className={`text-[10px] mt-1 ${msg.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                  {new Date(msg.sentAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
