@@ -152,7 +152,7 @@ export function SdrLeadCard({
               <Share2 className="h-3.5 w-3.5" />
             </Button>
           )}
-          {assignment.status === "distribuido" && (
+          {(assignment.status === "distribuido" || assignment.status === "invalido") && (
             <Button
               size="sm" variant="ghost"
               className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
