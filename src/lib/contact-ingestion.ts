@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { leads, contactMessages } from "@/db/schema";
+import { leads, contactMessages, sdrAssignments } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 
@@ -51,6 +51,11 @@ export async function ingestContactMessage(params: IngestParams) {
       mediaUrl: mediaUrl ?? null,
       mediaType: mediaType ?? null,
     });
+    // Atualizar last_interaction_at para mover o card ao topo da coluna
+    await db
+      .update(sdrAssignments)
+      .set({ lastInteractionAt: new Date(), updatedAt: new Date() })
+      .where(eq(sdrAssignments.contactId, existing.id));
     return { contactId: existing.id, isNew: false };
   }
 
@@ -76,6 +81,11 @@ export async function ingestContactMessage(params: IngestParams) {
   });
 
   await assignContactToNextSdr(contact.id);
+  // Marcar last_interaction_at no assignment recém criado
+  await db
+    .update(sdrAssignments)
+    .set({ lastInteractionAt: new Date() })
+    .where(eq(sdrAssignments.contactId, contact.id));
 
   return { contactId: contact.id, isNew: true };
 }

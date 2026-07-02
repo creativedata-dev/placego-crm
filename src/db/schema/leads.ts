@@ -70,6 +70,7 @@ export const sdrAssignments = pgTable("sdr_assignments", {
   assignedAt: timestamp("assigned_at").notNull().defaultNow(),
   status: sdrAssignmentStatusEnum("status").notNull().default("novo"),
   qualifiedAt: timestamp("qualified_at"),
+  lastInteractionAt: timestamp("last_interaction_at"),
   notes: text("notes"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

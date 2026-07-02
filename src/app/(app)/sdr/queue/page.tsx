@@ -1,10 +1,11 @@
 import { db } from "@/db";
 import { leads, sdrAssignments, properties, tenants, users, tags, contactTags, leadAssignments, contactMessages } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, desc, inArray, isNull, and, count } from "drizzle-orm";
+import { eq, desc, inArray, isNull, and, count, sql } from "drizzle-orm";
 import { QueueFilters } from "./queue-filters";
 import { AddContactButton } from "./add-contact-button";
 import { SdrKanbanBoard } from "./sdr-kanban-board";
+import { AutoRefresh } from "./auto-refresh";
 
 export const STATUS_COLUMNS = [
   { id: "novo", label: "Novos", color: "bg-blue-500" },
@@ -43,7 +44,7 @@ export default async function SDRQueuePage({
     .leftJoin(tenants, eq(leads.tenantId, tenants.id))
     .leftJoin(users, eq(sdrAssignments.sdrId, users.id))
     .where(targetSdrId ? eq(sdrAssignments.sdrId, targetSdrId) : undefined)
-    .orderBy(desc(leads.createdAt));
+    .orderBy(desc(sql`COALESCE(${sdrAssignments.lastInteractionAt}, ${sdrAssignments.assignedAt})`));
 
   // Buscar mensagens não lidas por contato
   const contactIds = rows.map((r) => r.contact.id);
@@ -145,9 +146,12 @@ export default async function SDRQueuePage({
           <h1 className="text-2xl font-bold">
             {isAdmin ? "Fila SDR — Visão geral" : "Minha fila"}
           </h1>
-          <p className="text-muted-foreground text-sm">
-            {isAdmin ? "Todos os contatos de todos os SDRs" : `${filtered.length} contatos no total`}
-          </p>
+          <div className="flex items-center gap-3 mt-0.5">
+            <p className="text-muted-foreground text-sm">
+              {isAdmin ? "Todos os contatos de todos os SDRs" : `${filtered.length} contatos no total`}
+            </p>
+            <AutoRefresh />
+          </div>
         </div>
         {isAdmin && <AddContactButton tenants={tenantList} />}
       </div>
