@@ -20,20 +20,20 @@ Email · Lead Ads Meta · Landing Pages · Manual · Portais
 ┌──────────────────────────────────────────────────────────┐
 │                  crm.placego.com.br                      │
 │                                                          │
-│  Next.js 16 (App Router) — Vercel Edge                  │
+│  Next.js 16 (App Router) — Vercel Edge                   │
 │                                                          │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │  Kanban SDR │  │ Lead Routing │  │ Pipeline Venda │  │
-│  │ (individual)│  │  (afinidade) │  │  (corretor)    │  │
-│  └─────────────┘  └──────────────┘  └────────────────┘  │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐   │
+│  │  Kanban SDR │  │ Lead Routing │  │ Pipeline Venda │   │
+│  │ (individual)│  │  (afinidade) │  │  (corretor)    │   │
+│  └─────────────┘  └──────────────┘  └────────────────┘   │
 │                                                          │
 │  ┌─────────────────────────────────────────────────────┐ │
 │  │   Atendimento Omnichannel (Fase B)                  │ │
-│  │   WhatsApp (Evolution) · DM Meta · Email (Resend)  │ │
+│  │   WhatsApp (Evolution) · DM Meta · Email (Resend)   │ │
 │  └─────────────────────────────────────────────────────┘ │
 │                                                          │
 │  Server Actions ──► Drizzle ORM ──► PostgreSQL (Supabase)│
-│  Supabase Auth ──► RBAC por role                        │
+│  Supabase Auth ──► RBAC por role                         │
 └──────────────────────────────────────────────────────────┘
                           │
                           ▼

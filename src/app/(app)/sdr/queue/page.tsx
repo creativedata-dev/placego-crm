@@ -13,6 +13,7 @@ export const STATUS_COLUMNS = [
   { id: "qualificado", label: "Qualificado", color: "bg-green-500" },
   { id: "distribuido", label: "Distribuído", color: "bg-purple-500" },
   { id: "invalido", label: "Inválido", color: "bg-red-400" },
+  { id: "arquivado", label: "Arquivados", color: "bg-gray-400" },
 ] as const;
 
 export default async function SDRQueuePage({
