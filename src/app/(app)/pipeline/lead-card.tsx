@@ -22,7 +22,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { moveAssignment, addActivity } from "@/app/actions/pipeline";
 import type { LeadAssignment, Lead, Tag } from "@/db/schema";
-import { Phone, MessageCircle, Mail, MapPin, StickyNote, ChevronRight, Plus } from "lucide-react";
+import { Phone, MessageCircle, Mail, MapPin, StickyNote, ChevronRight, Plus, ExternalLink } from "lucide-react";
+import Link from "next/link";
 
 const ACTIVITY_ICONS = {
   call: <Phone className="h-3 w-3" />,
@@ -87,7 +88,13 @@ export function LeadCard({
       >
         {/* Nome + dias */}
         <div className="flex items-start justify-between gap-1">
-          <p className="font-semibold text-sm leading-tight">{lead.name}</p>
+          <Link
+            href={`/pipeline/${assignment.id}`}
+            className="font-semibold text-sm leading-tight hover:underline hover:text-primary flex items-center gap-1"
+          >
+            {lead.name}
+            <ExternalLink className="h-3 w-3 opacity-40" />
+          </Link>
           <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
             {age === 0 ? "hoje" : `${age}d`}
           </span>
