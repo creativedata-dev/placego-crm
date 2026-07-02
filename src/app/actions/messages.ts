@@ -49,7 +49,7 @@ interface SendMessageParams {
 }
 
 export async function sendContactMessage(params: SendMessageParams) {
-  const user = await requireRole(["sdr", "admin_placego"]);
+  const user = await requireRole(["sdr", "admin_placego", "corretor", "corretor_tenant"]);
   const { contactId, channel, content, phone, email, name, instanceName } = params;
 
   try {
@@ -98,7 +98,7 @@ interface SendMediaParams {
 }
 
 export async function sendContactMedia(params: SendMediaParams) {
-  const user = await requireRole(["sdr", "admin_placego"]);
+  const user = await requireRole(["sdr", "admin_placego", "corretor", "corretor_tenant"]);
   const { contactId, phone, instanceName, mediaType, base64, mimeType, caption, fileName } = params;
 
   if (!phone) return { error: "Telefone não cadastrado" };
