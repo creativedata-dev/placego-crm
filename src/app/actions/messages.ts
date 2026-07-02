@@ -4,10 +4,39 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { contactMessages } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { sendText } from "@/lib/evolution";
+import { sendText, sendMedia, sendAudio } from "@/lib/evolution";
 import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+  "audio/ogg": "ogg", "audio/mpeg": "mp3",
+  "video/mp4": "mp4",
+  "application/pdf": "pdf",
+};
+
+function supabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
+
+async function uploadBase64ToStorage(base64: string, mimeType: string, folder: string) {
+  const ext = MIME_EXT[mimeType] ?? "bin";
+  const fileName = `${folder}/${Date.now()}.${ext}`;
+  const buffer = Buffer.from(base64, "base64");
+  const supabase = supabaseAdmin();
+  const { error } = await supabase.storage
+    .from("contact-media")
+    .upload(fileName, buffer, { contentType: mimeType, upsert: false });
+  if (error) throw new Error(`Storage upload error: ${error.message}`);
+  const { data } = supabase.storage.from("contact-media").getPublicUrl(fileName);
+  return data.publicUrl;
+}
 
 interface SendMessageParams {
   contactId: string;
@@ -24,7 +53,6 @@ export async function sendContactMessage(params: SendMessageParams) {
   const { contactId, channel, content, phone, email, name, instanceName } = params;
 
   try {
-    // Enviar pelo canal correspondente
     if (channel === "whatsapp") {
       if (!phone) return { error: "Telefone não cadastrado" };
       if (!instanceName) return { error: "WhatsApp não configurado para esta empresa" };
@@ -41,7 +69,6 @@ export async function sendContactMessage(params: SendMessageParams) {
       });
     }
 
-    // Registrar na timeline
     await db.insert(contactMessages).values({
       contactId,
       sdrId: user.id,
@@ -56,5 +83,53 @@ export async function sendContactMessage(params: SendMessageParams) {
   } catch (err: any) {
     console.error("[sendContactMessage]", err);
     return { error: err.message ?? "Erro ao enviar mensagem" };
+  }
+}
+
+interface SendMediaParams {
+  contactId: string;
+  phone: string | null;
+  instanceName: string | null;
+  mediaType: string;
+  base64: string;
+  mimeType: string;
+  caption: string;
+  fileName: string;
+}
+
+export async function sendContactMedia(params: SendMediaParams) {
+  const user = await requireRole(["sdr", "admin_placego"]);
+  const { contactId, phone, instanceName, mediaType, base64, mimeType, caption, fileName } = params;
+
+  if (!phone) return { error: "Telefone não cadastrado" };
+  if (!instanceName) return { error: "WhatsApp não configurado" };
+
+  try {
+    // Enviar pelo WhatsApp
+    if (mediaType === "audio") {
+      await sendAudio(instanceName, phone, base64);
+    } else {
+      await sendMedia(instanceName, phone, mediaType as any, base64, caption, fileName);
+    }
+
+    // Salvar no storage para exibir na timeline
+    const mediaUrl = await uploadBase64ToStorage(base64, mimeType, `sent/${contactId}`);
+
+    await db.insert(contactMessages).values({
+      contactId,
+      sdrId: user.id,
+      channel: "whatsapp",
+      direction: "out",
+      content: caption || `[${mediaType}]`,
+      mediaUrl,
+      mediaType,
+    });
+
+    revalidatePath(`/sdr/contacts/${contactId}`);
+    return { ok: true };
+
+  } catch (err: any) {
+    console.error("[sendContactMedia]", err);
+    return { error: err.message ?? "Erro ao enviar mídia" };
   }
 }

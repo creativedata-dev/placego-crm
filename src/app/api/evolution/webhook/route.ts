@@ -3,19 +3,71 @@ import { db } from "@/db";
 import { tenants } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ingestContactMessage } from "@/lib/contact-ingestion";
+import { getMediaBase64 } from "@/lib/evolution";
+import { createClient } from "@supabase/supabase-js";
 
-// Evolution API envia eventos para este endpoint
+const MEDIA_TYPES: Record<string, string> = {
+  imageMessage: "image",
+  audioMessage: "audio",
+  videoMessage: "video",
+  documentMessage: "document",
+  documentWithCaptionMessage: "document",
+  stickerMessage: "image",
+  pttMessage: "audio",
+};
+
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+  "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a",
+  "video/mp4": "mp4", "video/mpeg": "mpeg",
+  "application/pdf": "pdf",
+};
+
+function supabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
+
+async function uploadMediaToStorage(
+  base64: string,
+  mimeType: string,
+  folder: string
+): Promise<string | null> {
+  try {
+    const ext = MIME_EXT[mimeType] ?? "bin";
+    const fileName = `${folder}/${Date.now()}.${ext}`;
+    const buffer = Buffer.from(base64, "base64");
+
+    const supabase = supabaseAdmin();
+    const { error } = await supabase.storage
+      .from("contact-media")
+      .upload(fileName, buffer, { contentType: mimeType, upsert: false });
+
+    if (error) {
+      console.error("[webhook/evolution] storage upload error:", error.message);
+      return null;
+    }
+
+    const { data } = supabase.storage.from("contact-media").getPublicUrl(fileName);
+    return data.publicUrl;
+  } catch (err) {
+    console.error("[webhook/evolution] uploadMedia error:", err);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { event, instance, data } = body;
 
-    // Só processa mensagens recebidas (não enviadas pelo CRM)
     if (event !== "messages.upsert") return NextResponse.json({ ok: true });
     if (data?.key?.fromMe) return NextResponse.json({ ok: true });
     if (data?.messageType === "protocolMessage") return NextResponse.json({ ok: true });
 
-    // Identificar empresa pela instância (placego-{slug})
     const slug = instance?.replace("placego-", "");
     if (!slug) return NextResponse.json({ ok: true });
 
@@ -25,17 +77,50 @@ export async function POST(request: Request) {
       .where(eq(tenants.slug, slug))
       .limit(1);
 
-    // Extrair dados do remetente
     const remoteJid = data?.key?.remoteJid ?? "";
     const phone = remoteJid.replace("@s.whatsapp.net", "").replace("@c.us", "");
-    if (!phone || remoteJid.includes("@g.us")) return NextResponse.json({ ok: true }); // ignora grupos
+    if (!phone || remoteJid.includes("@g.us")) return NextResponse.json({ ok: true });
 
     const pushName = data?.pushName ?? data?.notifyName ?? "Sem nome";
-    const messageText = data?.message?.conversation
-      ?? data?.message?.extendedTextMessage?.text
-      ?? "[mídia]";
+    const instanceName = `placego-${slug}`;
 
-    const result = await ingestContactMessage({
+    // Detectar tipo de mensagem
+    const messageType = data?.messageType ?? "";
+    const mediaType = MEDIA_TYPES[messageType];
+
+    let messageText = "";
+    let mediaUrl: string | null = null;
+    let detectedMediaType: string | null = null;
+
+    if (mediaType) {
+      // Mensagem de mídia — fazer download via Evolution API
+      detectedMediaType = mediaType;
+      const msgObj = data?.message?.[messageType] ?? {};
+      const caption = msgObj.caption ?? "";
+      messageText = caption || `[${mediaType}]`;
+
+      try {
+        const instanceSlug = `placego-${slug}`;
+        const b64res = await getMediaBase64(instanceSlug, data.key);
+        if (b64res?.base64) {
+          const mimeType = msgObj.mimetype ?? (
+            mediaType === "audio" ? "audio/ogg" :
+            mediaType === "image" ? "image/jpeg" :
+            mediaType === "video" ? "video/mp4" : "application/octet-stream"
+          );
+          mediaUrl = await uploadMediaToStorage(b64res.base64, mimeType, `whatsapp/${phone}`);
+        }
+      } catch (err) {
+        console.error("[webhook/evolution] getMediaBase64 error:", err);
+      }
+    } else {
+      // Mensagem de texto
+      messageText = data?.message?.conversation
+        ?? data?.message?.extendedTextMessage?.text
+        ?? "[mensagem]";
+    }
+
+    await ingestContactMessage({
       name: pushName,
       phone,
       origin: "whatsapp",
@@ -43,9 +128,11 @@ export async function POST(request: Request) {
       tenantId: tenant?.id ?? null,
       qualityScore: 65,
       messageContent: messageText,
+      mediaUrl: mediaUrl ?? undefined,
+      mediaType: detectedMediaType ?? undefined,
     });
 
-    console.log(`[webhook/evolution] ${result.isNew ? "Novo" : "Mensagem de"} contato via WhatsApp: ${pushName} (${phone})`);
+    console.log(`[webhook/evolution] ${pushName} (${phone}) — ${detectedMediaType ?? "text"}`);
     return NextResponse.json({ ok: true });
 
   } catch (err) {

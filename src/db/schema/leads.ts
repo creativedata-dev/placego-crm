@@ -82,6 +82,8 @@ export const contactMessages = pgTable("contact_messages", {
   channel: messageChannelEnum("channel").notNull(),
   direction: messageDirectionEnum("direction").notNull().default("in"),
   content: text("content").notNull(),
+  mediaUrl: text("media_url"),
+  mediaType: text("media_type"), // image | audio | video | document
   metaMessageId: text("meta_message_id"),
   sentAt: timestamp("sent_at").notNull().defaultNow(),
   readAt: timestamp("read_at"),

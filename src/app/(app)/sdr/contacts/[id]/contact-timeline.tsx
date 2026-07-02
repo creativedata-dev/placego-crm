@@ -19,7 +19,54 @@ interface Props {
   origin: string;
 }
 
-function MessageContent({ content, channel, isOut }: { content: string; channel: string; isOut: boolean }) {
+function MessageContent({ content, channel, isOut, mediaUrl, mediaType }: {
+  content: string;
+  channel: string;
+  isOut: boolean;
+  mediaUrl: string | null | undefined;
+  mediaType: string | null | undefined;
+}) {
+  // Renderizar mídia se existir
+  if (mediaUrl && mediaType) {
+    return (
+      <div className="space-y-1.5">
+        {mediaType === "image" && (
+          <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
+            <img
+              src={mediaUrl}
+              alt="imagem"
+              className="max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            />
+          </a>
+        )}
+        {mediaType === "audio" && (
+          <audio controls className="max-w-[240px]" style={{ height: 36 }}>
+            <source src={mediaUrl} />
+          </audio>
+        )}
+        {mediaType === "video" && (
+          <video controls className="max-w-[240px] rounded-lg">
+            <source src={mediaUrl} />
+          </video>
+        )}
+        {mediaType === "document" && (
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-1.5 text-xs underline ${isOut ? "text-primary-foreground" : "text-primary"}`}
+          >
+            📎 {content !== `[${mediaType}]` ? content : "Documento"}
+          </a>
+        )}
+        {content && content !== `[${mediaType}]` && mediaType !== "document" && (
+          <p className="text-sm whitespace-pre-wrap">{content}</p>
+        )}
+      </div>
+    );
+  }
+
+  // Email com subject destacado
   if (channel === "email") {
     const sep = content.indexOf("\n\n");
     if (sep > 0) {
@@ -35,6 +82,7 @@ function MessageContent({ content, channel, isOut }: { content: string; channel:
       );
     }
   }
+
   return <p className="whitespace-pre-wrap">{content}</p>;
 }
 
@@ -61,7 +109,6 @@ export function ContactTimeline({ messages, origin }: Props) {
         return (
           <div key={msg.id} className={`flex ${isOut ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[75%] space-y-1 ${isOut ? "items-end" : "items-start"} flex flex-col`}>
-              {/* Remetente */}
               <div className={`flex items-center gap-1.5 text-xs text-muted-foreground ${isOut ? "flex-row-reverse" : ""}`}>
                 <span>{CHANNEL_ICONS[msg.channel] ?? "📨"}</span>
                 <span>{isOut ? (msg.sdrName ?? "SDR") : "Contato"}</span>
@@ -69,13 +116,18 @@ export function ContactTimeline({ messages, origin }: Props) {
                 <span>{date} {time}</span>
               </div>
 
-              {/* Balão */}
               <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                 isOut
                   ? "bg-primary text-primary-foreground rounded-tr-sm"
                   : "bg-background border rounded-tl-sm"
               }`}>
-                <MessageContent content={msg.content} channel={msg.channel} isOut={isOut} />
+                <MessageContent
+                  content={msg.content}
+                  channel={msg.channel}
+                  isOut={isOut}
+                  mediaUrl={msg.mediaUrl}
+                  mediaType={msg.mediaType}
+                />
               </div>
             </div>
           </div>

@@ -13,6 +13,8 @@ interface IngestParams {
   tenantId: string | null;
   qualityScore: number;
   messageContent: string;
+  mediaUrl?: string;
+  mediaType?: string;
 }
 
 /**
@@ -21,7 +23,7 @@ interface IngestParams {
  * Deduplica por telefone, email ou meta_user_id nos últimos 30 dias.
  */
 export async function ingestContactMessage(params: IngestParams) {
-  const { name, phone, email, metaUserId, origin, channel, tenantId, qualityScore, messageContent } = params;
+  const { name, phone, email, metaUserId, origin, channel, tenantId, qualityScore, messageContent, mediaUrl, mediaType } = params;
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -46,6 +48,8 @@ export async function ingestContactMessage(params: IngestParams) {
       channel: channel as any,
       direction: "in",
       content: messageContent,
+      mediaUrl: mediaUrl ?? null,
+      mediaType: mediaType ?? null,
     });
     return { contactId: existing.id, isNew: false };
   }
@@ -67,6 +71,8 @@ export async function ingestContactMessage(params: IngestParams) {
     channel: channel as any,
     direction: "in",
     content: messageContent,
+    mediaUrl: mediaUrl ?? null,
+    mediaType: mediaType ?? null,
   });
 
   await assignContactToNextSdr(contact.id);

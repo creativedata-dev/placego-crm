@@ -66,6 +66,38 @@ export async function setInstanceWebhook(instanceName: string) {
 
 // ── Mensagens ─────────────────────────────────────────────────────────────────
 
+export async function getMediaBase64(instanceName: string, messageKey: object) {
+  return evo(`/chat/getBase64FromMediaMessage/${instanceName}`, {
+    method: "POST",
+    body: JSON.stringify({ message: { key: messageKey } }),
+  });
+}
+
+export async function sendMedia(
+  instanceName: string,
+  phone: string,
+  mediatype: "image" | "video" | "document",
+  media: string, // base64 ou URL
+  caption: string,
+  fileName?: string
+) {
+  const normalized = phone.replace(/\D/g, "");
+  const number = normalized.startsWith("55") ? normalized : `55${normalized}`;
+  return evo(`/message/sendMedia/${instanceName}`, {
+    method: "POST",
+    body: JSON.stringify({ number, mediatype, media, caption, fileName }),
+  });
+}
+
+export async function sendAudio(instanceName: string, phone: string, audio: string) {
+  const normalized = phone.replace(/\D/g, "");
+  const number = normalized.startsWith("55") ? normalized : `55${normalized}`;
+  return evo(`/message/sendWhatsAppAudio/${instanceName}`, {
+    method: "POST",
+    body: JSON.stringify({ number, audio, encoding: true }),
+  });
+}
+
 export async function sendText(
   instanceName: string,
   phone: string,
