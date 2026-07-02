@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { leads, contactMessages, sdrAssignments } from "@/db/schema";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte, sql } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 
 interface IngestParams {
@@ -51,10 +51,15 @@ export async function ingestContactMessage(params: IngestParams) {
       mediaUrl: mediaUrl ?? null,
       mediaType: mediaType ?? null,
     });
-    // Atualizar last_interaction_at para mover o card ao topo da coluna
+    // Se arquivado, reativar para "novo" e mover ao topo
+    // Caso contrário só atualiza last_interaction_at
     await db
       .update(sdrAssignments)
-      .set({ lastInteractionAt: new Date(), updatedAt: new Date() })
+      .set({
+        status: sql`CASE WHEN status = 'arquivado' THEN 'novo'::sdr_assignment_status ELSE status END`,
+        lastInteractionAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(sdrAssignments.contactId, existing.id));
     return { contactId: existing.id, isNew: false };
   }
