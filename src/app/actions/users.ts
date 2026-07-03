@@ -104,9 +104,15 @@ export async function sendPasswordReset(id: string) {
   if (!user) throw new Error("Usuário não encontrado");
 
   const supabase = adminClient();
-  await supabase.auth.admin.generateLink({ type: "recovery", email: user.email });
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: "recovery",
+    email: user.email,
+    options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/` },
+  });
+  if (error || !data?.properties?.action_link) throw new Error("Erro ao gerar link de recuperação");
 
-  // Envia email de reset via Resend
+  const resetLink = data.properties.action_link;
+
   const { Resend } = await import("resend");
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
@@ -116,8 +122,13 @@ export async function sendPasswordReset(id: string) {
     html: `
       <p>Olá!</p>
       <p>Um administrador solicitou a redefinição da sua senha no PlaceGo CRM.</p>
-      <p>Acesse o sistema e use a opção "Esqueci minha senha" com o email <strong>${user.email}</strong>.</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/login">Acessar PlaceGo CRM</a></p>
+      <p>Clique no botão abaixo para definir uma nova senha. O link é válido por 24 horas.</p>
+      <p style="margin: 24px 0;">
+        <a href="${resetLink}" style="background:#18181b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+          Redefinir senha
+        </a>
+      </p>
+      <p style="font-size:12px;color:#888;">Se você não solicitou essa redefinição, ignore este email.</p>
     `,
   });
 }
