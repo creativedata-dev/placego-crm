@@ -107,7 +107,7 @@ export async function sendPasswordReset(id: string) {
   const { data, error } = await supabase.auth.admin.generateLink({
     type: "recovery",
     email: user.email,
-    options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/` },
+    options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery` },
   });
   if (error || !data?.properties?.action_link) throw new Error("Erro ao gerar link de recuperação");
 
