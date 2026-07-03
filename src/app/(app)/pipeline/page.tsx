@@ -1,7 +1,7 @@
 import { db } from "@/db";
-import { leadAssignments, leads, users, tags, contactTags } from "@/db/schema";
+import { leadAssignments, leads, users, tags, contactTags, tenants } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { KanbanBoard } from "./kanban-board";
 
 export const COLUMNS = [
@@ -23,15 +23,13 @@ export default async function PipelinePage() {
       assignment: leadAssignments,
       lead: leads,
       brokerName: users.name,
+      tenantName: tenants.name,
     })
     .from(leadAssignments)
     .innerJoin(leads, eq(leadAssignments.leadId, leads.id))
     .innerJoin(users, eq(leadAssignments.brokerId, users.id))
-    .where(
-      isAdmin
-        ? undefined
-        : eq(leadAssignments.brokerId, user.id)
-    )
+    .leftJoin(tenants, eq(leads.tenantId, tenants.id))
+    .where(isAdmin ? undefined : eq(leadAssignments.brokerId, user.id))
     .orderBy(leadAssignments.assignedAt);
 
   // Buscar tags dos leads (herdadas do contato original)
@@ -56,7 +54,7 @@ export default async function PipelinePage() {
     ...col,
     cards: rows
       .filter((r) => r.assignment.status === col.id)
-      .map((r) => ({ ...r, tags: tagsByLead.get(r.lead.id) ?? [] })),
+      .map((r) => ({ ...r, tags: tagsByLead.get(r.lead.id) ?? [], tenantName: r.tenantName })),
   }));
 
   return (

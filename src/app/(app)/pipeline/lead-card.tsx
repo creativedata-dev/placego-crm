@@ -37,6 +37,7 @@ interface Props {
   assignment: LeadAssignment;
   lead: Lead;
   brokerName: string;
+  tenantName: string | null;
   tags: Tag[];
   isAdmin: boolean;
   currentCol: string;
@@ -49,6 +50,7 @@ export function LeadCard({
   assignment,
   lead,
   brokerName,
+  tenantName,
   tags,
   isAdmin,
   currentCol,
@@ -102,6 +104,11 @@ export function LeadCard({
 
         {/* Telefone */}
         <p className="text-xs text-muted-foreground">{lead.phone}</p>
+
+        {/* Empresa */}
+        {tenantName && (
+          <p className="text-[10px] text-muted-foreground truncate">🏢 {tenantName}</p>
+        )}
 
         {/* Corretor (admin only) */}
         {isAdmin && (

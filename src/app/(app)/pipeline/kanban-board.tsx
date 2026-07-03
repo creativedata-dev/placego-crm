@@ -10,7 +10,7 @@ type ColumnData = {
   id: string;
   label: string;
   color: string;
-  cards: { assignment: LeadAssignment; lead: Lead; brokerName: string; tags: Tag[] }[];
+  cards: { assignment: LeadAssignment; lead: Lead; brokerName: string; tenantName: string | null; tags: Tag[] }[];
 };
 
 interface Props {
@@ -77,12 +77,13 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
             {col.cards.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-6">Vazio</p>
             )}
-            {col.cards.map(({ assignment, lead, brokerName, tags }) => (
+            {col.cards.map(({ assignment, lead, brokerName, tenantName, tags }) => (
               <LeadCard
                 key={assignment.id}
                 assignment={assignment}
                 lead={lead}
                 brokerName={brokerName}
+                tenantName={tenantName}
                 tags={tags}
                 isAdmin={isAdmin}
                 currentCol={col.id}
