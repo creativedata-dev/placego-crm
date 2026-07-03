@@ -153,7 +153,7 @@ export default async function SDRQueuePage({
             <AutoRefresh />
           </div>
         </div>
-        {isAdmin && <AddContactButton tenants={tenantList} />}
+        <AddContactButton tenants={tenantList} />
       </div>
 
       {/* Filtros */}

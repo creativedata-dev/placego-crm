@@ -8,7 +8,7 @@ import { requireRole } from "@/lib/auth";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 
 export async function createContact(formData: FormData) {
-  await requireRole(["admin_placego"]);
+  await requireRole(["admin_placego", "sdr"]);
 
   const name = formData.get("name") as string;
   const phone = formData.get("phone") as string;
