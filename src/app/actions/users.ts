@@ -97,40 +97,57 @@ export async function toggleUserActive(id: string, isActive: boolean) {
   revalidatePath("/users");
 }
 
-export async function sendPasswordReset(id: string) {
+export async function sendPasswordReset(id: string): Promise<{ ok: boolean; error?: string; link?: string }> {
   await requireRole(["admin_placego"]);
 
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, id)).limit(1);
-  if (!user) throw new Error("Usuário não encontrado");
+  if (!user) return { ok: false, error: "Usuário não encontrado" };
 
   const supabase = adminClient();
-  const { data, error } = await supabase.auth.admin.generateLink({
+  const { data, error: genError } = await supabase.auth.admin.generateLink({
     type: "recovery",
     email: user.email,
     options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery` },
   });
-  if (error || !data?.properties?.action_link) throw new Error("Erro ao gerar link de recuperação");
+
+  if (genError || !data?.properties?.action_link) {
+    console.error("[sendPasswordReset] generateLink error:", genError?.message);
+    return { ok: false, error: genError?.message ?? "Erro ao gerar link" };
+  }
 
   const resetLink = data.properties.action_link;
 
-  const { Resend } = await import("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  await resend.emails.send({
-    from: "PlaceGo CRM <noreply@placego.com.br>",
-    to: user.email,
-    subject: "Redefinição de senha — PlaceGo CRM",
-    html: `
-      <p>Olá!</p>
-      <p>Um administrador solicitou a redefinição da sua senha no PlaceGo CRM.</p>
-      <p>Clique no botão abaixo para definir uma nova senha. O link é válido por 24 horas.</p>
-      <p style="margin: 24px 0;">
-        <a href="${resetLink}" style="background:#18181b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
-          Redefinir senha
-        </a>
-      </p>
-      <p style="font-size:12px;color:#888;">Se você não solicitou essa redefinição, ignore este email.</p>
-    `,
-  });
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error: emailError } = await resend.emails.send({
+      from: "PlaceGo CRM <noreply@placego.com.br>",
+      to: user.email,
+      subject: "Redefinição de senha — PlaceGo CRM",
+      html: `
+        <p>Olá!</p>
+        <p>Um administrador solicitou a redefinição da sua senha no PlaceGo CRM.</p>
+        <p>Clique no botão abaixo para definir uma nova senha. O link é válido por 24 horas.</p>
+        <p style="margin: 24px 0;">
+          <a href="${resetLink}" style="background:#18181b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+            Redefinir senha
+          </a>
+        </p>
+        <p style="font-size:12px;color:#888;">Se você não solicitou essa redefinição, ignore este email.</p>
+      `,
+    });
+
+    if (emailError) {
+      console.error("[sendPasswordReset] Resend error:", emailError);
+      // Email falhou mas link foi gerado — retorna o link para copiar manualmente
+      return { ok: true, link: resetLink, error: `Email não enviado: ${emailError.message}. Copie o link abaixo.` };
+    }
+  } catch (e: any) {
+    console.error("[sendPasswordReset] Resend exception:", e?.message);
+    return { ok: true, link: resetLink, error: `Email não enviado: ${e?.message}. Copie o link abaixo.` };
+  }
+
+  return { ok: true };
 }
 
 export async function deleteUser(id: string) {

@@ -13,6 +13,7 @@ import {
   ListChecks,
   Share2,
   Kanban,
+  ContactRound,
   LogOut,
 } from "lucide-react";
 import {
@@ -42,6 +43,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   ListChecks,
   Share2,
   Kanban,
+  ContactRound,
 };
 
 interface AppSidebarProps {
