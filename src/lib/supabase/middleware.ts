@@ -35,6 +35,7 @@ export async function updateSession(request: NextRequest) {
   const publicRoutes = [
     "/login",
     "/auth/callback",
+    "/auth/reset-password",
     "/api/leads/capture",
     "/api/email/inbound",
     "/api/evolution/webhook",

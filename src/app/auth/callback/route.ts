@@ -8,7 +8,13 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { data } = await supabase.auth.exchangeCodeForSession(code);
+
+    // Link de recovery — redirecionar para página de redefinição de senha
+    if (data?.session?.user?.aud === "authenticated" &&
+        data?.session?.user?.recovery_sent_at) {
+      return NextResponse.redirect(`${origin}/auth/reset-password`);
+    }
   }
 
   return NextResponse.redirect(`${origin}${next}`);
