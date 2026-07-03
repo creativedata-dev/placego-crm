@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,39 @@ export function ResetPasswordForm() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const router = useRouter();
+
+  // Captura o token do hash e estabelece a sessão
+  useEffect(() => {
+    const hash = window.location.hash.slice(1); // remove o #
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (accessToken && refreshToken) {
+      const supabase = createClient();
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+        if (error) {
+          setError("Link inválido ou expirado. Solicite um novo link de redefinição.");
+        } else {
+          setReady(true);
+          // Limpa o hash da URL sem recarregar
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      });
+    } else {
+      // Sem token no hash — verificar se já tem sessão ativa (recovery)
+      const supabase = createClient();
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          setReady(true);
+        } else {
+          setError("Link inválido ou expirado. Solicite um novo link de redefinição.");
+        }
+      });
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,6 +72,19 @@ export function ResetPasswordForm() {
   }
 
   const inputClass = "w-full h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring";
+
+  if (!ready && !error) {
+    return <p className="text-sm text-muted-foreground text-center">Verificando link…</p>;
+  }
+
+  if (error && !ready) {
+    return (
+      <div className="space-y-4 text-center">
+        <p className="text-sm text-destructive">{error}</p>
+        <Button variant="outline" onClick={() => router.push("/login")}>Voltar ao login</Button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

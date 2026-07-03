@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,15 @@ const RATE_LIMIT_COOLDOWN = 60; // segundos
 
 export function LoginForm() {
   const router = useRouter();
+
+  // Supabase recovery links land on /login#access_token=...&type=recovery
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("type=recovery")) {
+      router.replace("/auth/reset-password" + hash);
+    }
+  }, [router]);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
