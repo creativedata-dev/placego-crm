@@ -86,6 +86,8 @@ export const contactMessages = pgTable("contact_messages", {
   mediaUrl: text("media_url"),
   mediaType: text("media_type"), // image | audio | video | document
   metaMessageId: text("meta_message_id"),
+  whatsappMessageId: text("whatsapp_message_id"),
+  ack: integer("ack").default(0), // 0=pending, 1=server, 2=delivered, 3=read, -1=error
   sentAt: timestamp("sent_at").notNull().defaultNow(),
   readAt: timestamp("read_at"),
 });

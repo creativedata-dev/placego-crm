@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { tenants } from "@/db/schema";
+import { tenants, contactMessages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ingestContactMessage } from "@/lib/contact-ingestion";
 import { getMediaBase64 } from "@/lib/evolution";
 import { createClient } from "@supabase/supabase-js";
+
+const ACK_MAP: Record<string, number> = {
+  PENDING: 0,
+  SERVER_ACK: 1,
+  DELIVERY_ACK: 2,
+  READ: 3,
+  PLAYED: 3,
+  ERROR: -1,
+};
 
 const MEDIA_TYPES: Record<string, string> = {
   imageMessage: "image",
@@ -63,6 +72,22 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { event, instance, data } = body;
+
+    // ACK update — atualiza status da mensagem enviada
+    if (event === "messages.update") {
+      const updates = Array.isArray(data) ? data : [data];
+      for (const update of updates) {
+        const msgId = update?.key?.id;
+        const ackStr = update?.update?.status ?? update?.status;
+        const ack = ackStr !== undefined ? (ACK_MAP[ackStr] ?? Number(ackStr)) : null;
+        if (msgId && ack !== null) {
+          await db.update(contactMessages)
+            .set({ ack })
+            .where(eq(contactMessages.whatsappMessageId, msgId));
+        }
+      }
+      return NextResponse.json({ ok: true });
+    }
 
     if (event !== "messages.upsert") return NextResponse.json({ ok: true });
     if (data?.key?.fromMe) return NextResponse.json({ ok: true });

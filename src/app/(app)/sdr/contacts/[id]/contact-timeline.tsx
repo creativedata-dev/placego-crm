@@ -19,6 +19,17 @@ interface Props {
   origin: string;
 }
 
+// ✓ pending | ✓✓ server/delivered | ✓✓ azul = read | ✗ error
+function AckTicks({ ack, channel }: { ack: number | null; channel: string }) {
+  if (channel !== "whatsapp" || ack === null) return null;
+  if (ack === -1) return <span className="text-xs text-red-400" title="Erro">✗</span>;
+  if (ack === 0) return <span className="text-xs text-gray-300" title="Pendente">✓</span>;
+  if (ack === 1) return <span className="text-xs text-gray-300" title="Enviado">✓✓</span>;
+  if (ack === 2) return <span className="text-xs text-gray-300" title="Entregue">✓✓</span>;
+  if (ack >= 3) return <span className="text-xs text-blue-300" title="Lido">✓✓</span>;
+  return null;
+}
+
 function MessageContent({ content, channel, isOut, mediaUrl, mediaType }: {
   content: string;
   channel: string;
@@ -128,6 +139,11 @@ export function ContactTimeline({ messages, origin }: Props) {
                   mediaUrl={msg.mediaUrl}
                   mediaType={msg.mediaType}
                 />
+                {isOut && (
+                  <div className="flex justify-end mt-0.5">
+                    <AckTicks ack={msg.ack ?? null} channel={msg.channel} />
+                  </div>
+                )}
               </div>
             </div>
           </div>

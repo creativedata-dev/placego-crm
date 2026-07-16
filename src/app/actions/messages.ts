@@ -53,10 +53,13 @@ export async function sendContactMessage(params: SendMessageParams) {
   const { contactId, channel, content, phone, email, name, instanceName } = params;
 
   try {
+    let whatsappMessageId: string | null = null;
+
     if (channel === "whatsapp") {
       if (!phone) return { error: "Telefone não cadastrado" };
       if (!instanceName) return { error: "WhatsApp não configurado para esta empresa" };
-      await sendText(instanceName, phone, content);
+      const result = await sendText(instanceName, phone, content);
+      whatsappMessageId = result?.key?.id ?? null;
     }
 
     if (channel === "email") {
@@ -75,6 +78,8 @@ export async function sendContactMessage(params: SendMessageParams) {
       channel: channel as any,
       direction: "out",
       content,
+      whatsappMessageId,
+      ack: whatsappMessageId ? 0 : null,
     });
 
     revalidatePath(`/sdr/contacts/${contactId}`);
@@ -106,11 +111,13 @@ export async function sendContactMedia(params: SendMediaParams) {
 
   try {
     // Enviar pelo WhatsApp
+    let waResult: any;
     if (mediaType === "audio") {
-      await sendAudio(instanceName, phone, base64);
+      waResult = await sendAudio(instanceName, phone, base64);
     } else {
-      await sendMedia(instanceName, phone, mediaType as any, base64, caption, fileName);
+      waResult = await sendMedia(instanceName, phone, mediaType as any, base64, caption, fileName);
     }
+    const whatsappMessageId = waResult?.key?.id ?? null;
 
     // Salvar no storage para exibir na timeline
     const mediaUrl = await uploadBase64ToStorage(base64, mimeType, `sent/${contactId}`);
@@ -123,6 +130,8 @@ export async function sendContactMedia(params: SendMediaParams) {
       content: caption || `[${mediaType}]`,
       mediaUrl,
       mediaType,
+      whatsappMessageId,
+      ack: whatsappMessageId ? 0 : null,
     });
 
     revalidatePath(`/sdr/contacts/${contactId}`);
