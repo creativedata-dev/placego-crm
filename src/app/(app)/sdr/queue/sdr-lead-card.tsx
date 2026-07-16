@@ -30,6 +30,8 @@ const ORIGIN_COLORS: Record<string, string> = {
   portal: "bg-teal-500/10 text-teal-700 border-teal-200",
 };
 
+const NON_MOVABLE = new Set(["distribuido", "arquivado"]);
+
 interface Props {
   assignment: SdrAssignment;
   contact: Lead;
@@ -41,13 +43,16 @@ interface Props {
   brokerNames: string[];
   unreadCount: number;
   isAdmin: boolean;
+  currentColId: string;
+  allColumns: { id: string; label: string }[];
+  onMoveCard?: (assignmentId: string, targetColId: string) => void;
   onDragStart?: () => void;
   onDragEnd: () => void;
 }
 
 export function SdrLeadCard({
   assignment, contact, propertyAddress, propertyNeighborhood, tenantName, sdrName, tags, brokerNames,
-  unreadCount, isAdmin, onDragStart, onDragEnd,
+  unreadCount, isAdmin, currentColId, allColumns, onMoveCard, onDragStart, onDragEnd,
 }: Props) {
   const [isPending, startTransition] = useTransition();
 
@@ -57,6 +62,8 @@ export function SdrLeadCard({
 
   const age = Math.floor((Date.now() - new Date(contact.createdAt).getTime()) / 60000);
   const ageLabel = age < 60 ? `${age}min` : age < 1440 ? `${Math.floor(age / 60)}h` : `${Math.floor(age / 1440)}d`;
+
+  const movableColumns = allColumns.filter((c) => c.id !== currentColId && !NON_MOVABLE.has(c.id));
 
   function qualify() {
     startTransition(() => updateSdrAssignmentStatus(assignment.id, "qualificado"));
@@ -126,8 +133,26 @@ export function SdrLeadCard({
         </div>
       )}
 
-      <div className="flex gap-1 pt-1 border-t items-center">
+      <div className="flex gap-1 pt-1 border-t items-center flex-wrap">
         <TagPicker contactId={contact.id} initialTags={tags} compact />
+
+        {/* Mover coluna — só mobile, via select */}
+        {onMoveCard && movableColumns.length > 0 && (
+          <select
+            className="md:hidden text-[10px] border rounded px-1.5 py-1 bg-background text-muted-foreground"
+            defaultValue=""
+            disabled={isPending}
+            onChange={(e) => {
+              if (e.target.value) onMoveCard(assignment.id, e.target.value);
+              e.target.value = "";
+            }}
+          >
+            <option value="" disabled>Mover para…</option>
+            {movableColumns.map((c) => (
+              <option key={c.id} value={c.id}>{c.label}</option>
+            ))}
+          </select>
+        )}
 
         <div className="ml-auto flex gap-1">
           {assignment.status !== "qualificado" && assignment.status !== "distribuido" && assignment.status !== "invalido" && (

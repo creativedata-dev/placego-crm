@@ -42,6 +42,7 @@ interface Props {
   isAdmin: boolean;
   currentCol: string;
   allColumns: { id: string; label: string }[];
+  onMoveCard?: (assignmentId: string, targetColId: string) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
 }
@@ -55,6 +56,7 @@ export function LeadCard({
   isAdmin,
   currentCol,
   allColumns,
+  onMoveCard,
   onDragStart,
   onDragEnd,
 }: Props) {
@@ -131,7 +133,7 @@ export function LeadCard({
         )}
 
         {/* Ações rápidas */}
-        <div className="flex gap-1 pt-1 border-t">
+        <div className="flex gap-1 pt-1 border-t flex-wrap">
           <Button
             size="sm"
             variant="ghost"
@@ -142,9 +144,29 @@ export function LeadCard({
             Atividade
           </Button>
 
-          {/* Mover para próxima coluna */}
+          {/* Mover — select no mobile */}
+          {onMoveCard && (
+            <select
+              className="md:hidden text-[10px] border rounded px-1.5 py-1 bg-background text-muted-foreground"
+              defaultValue=""
+              disabled={isPending}
+              onChange={(e) => {
+                if (e.target.value) {
+                  if (e.target.value === "lost") { setLossOpen(true); }
+                  else { onMoveCard(assignment.id, e.target.value); }
+                }
+                e.target.value = "";
+              }}
+            >
+              <option value="" disabled>Mover para…</option>
+              {allColumns.filter((c) => c.id !== currentCol).map((c) => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Mover para próxima coluna — desktop */}
           {(() => {
-            const cols = allColumns.filter((c) => c.id !== currentCol && c.id !== "won");
             const next = allColumns.find(
               (c, i) => allColumns[i - 1]?.id === currentCol
             );
@@ -152,7 +174,7 @@ export function LeadCard({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 px-2 text-xs"
+                className="hidden md:flex h-6 px-2 text-xs"
                 onClick={() => handleMove(next.id)}
                 disabled={isPending}
                 title={`Mover para ${next.label}`}
