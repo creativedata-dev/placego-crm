@@ -27,19 +27,22 @@ export async function ingestContactMessage(params: IngestParams) {
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  // Buscar contato existente por telefone, email ou meta_user_id
+  // Deduplicação por telefone/email/metaUserId DENTRO do mesmo tenant.
+  // Mensagens para tenants diferentes geram contatos independentes.
+  const tenantCondition = tenantId ? eq(leads.tenantId, tenantId) : sql`${leads.tenantId} IS NULL`;
+
   let existing = null;
   if (phone) {
     [existing] = await db.select({ id: leads.id }).from(leads)
-      .where(and(eq(leads.phone, phone), gte(leads.createdAt, thirtyDaysAgo))).limit(1);
+      .where(and(eq(leads.phone, phone), tenantCondition, gte(leads.createdAt, thirtyDaysAgo))).limit(1);
   }
   if (!existing && email) {
     [existing] = await db.select({ id: leads.id }).from(leads)
-      .where(and(eq(leads.email, email), gte(leads.createdAt, thirtyDaysAgo))).limit(1);
+      .where(and(eq(leads.email, email), tenantCondition, gte(leads.createdAt, thirtyDaysAgo))).limit(1);
   }
   if (!existing && metaUserId) {
     [existing] = await db.select({ id: leads.id }).from(leads)
-      .where(and(eq(leads.metaUserId, metaUserId), gte(leads.createdAt, thirtyDaysAgo))).limit(1);
+      .where(and(eq(leads.metaUserId, metaUserId), tenantCondition, gte(leads.createdAt, thirtyDaysAgo))).limit(1);
   }
 
   if (existing) {
