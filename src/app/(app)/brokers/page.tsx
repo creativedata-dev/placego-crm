@@ -48,7 +48,47 @@ export default async function BrokersPage() {
         )}
       </div>
 
-      <div className="border rounded-lg">
+      {/* Mobile: cards */}
+      <div className="sm:hidden space-y-2">
+        {brokerList.length === 0 && (
+          <p className="text-center text-muted-foreground py-8 text-sm">Nenhum corretor cadastrado.</p>
+        )}
+        {brokerList.map(({ user: u, tenantName, creci, cities }) => {
+          const initials = u.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+          return (
+            <div key={u.id} className={`border rounded-xl p-3 space-y-2 ${!u.isActive ? "opacity-50" : ""}`}>
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{u.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                </div>
+                {u.isActive
+                  ? <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                  : <span className="h-2 w-2 rounded-full bg-gray-400 shrink-0" />}
+              </div>
+              <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                {creci && <span className="font-mono">CRECI: {creci}</span>}
+                {u.phone && <span>📱 {u.phone}</span>}
+                {tenantName && <span>🏢 {tenantName}</span>}
+                {cities && cities.length > 0 && <span>📍 {cities.slice(0, 2).join(", ")}{cities.length > 2 ? "…" : ""}</span>}
+              </div>
+              {isAdmin && (
+                <div className="pt-1 border-t">
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" nativeButton={false} render={<Link href={`/brokers/${u.id}/edit`} />}>
+                    Editar
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: tabela */}
+      <div className="hidden sm:block border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
@@ -99,22 +139,20 @@ export default async function BrokersPage() {
                   <TableCell>
                     {u.isActive ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                        Ativo
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Ativo
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                        Inativo
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400" /> Inativo
                       </span>
                     )}
                   </TableCell>
                   {isAdmin && (
-                  <TableCell>
-                    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/brokers/${u.id}/edit`} />}>
-                      Editar
-                    </Button>
-                  </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/brokers/${u.id}/edit`} />}>
+                        Editar
+                      </Button>
+                    </TableCell>
                   )}
                 </TableRow>
               );
