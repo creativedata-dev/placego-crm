@@ -38,7 +38,7 @@ export function UserForm({ action, tenants, defaultValues }: Props) {
   const [loading, setLoading] = useState(false);
 
   const needsTenant = role === "admin_tenant" || role === "corretor_tenant";
-  const canHaveTenant = needsTenant || role === "sdr";
+  const canHaveTenant = needsTenant || role === "sdr" || role === "corretor";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -117,9 +117,11 @@ export function UserForm({ action, tenants, defaultValues }: Props) {
             <Label htmlFor="tenantId">
               Empresa vinculada {needsTenant ? "*" : "(opcional)"}
             </Label>
-            {role === "sdr" && (
+            {(role === "sdr" || role === "corretor") && (
               <p className="text-xs text-muted-foreground">
-                SDR vinculado a uma empresa recebe leads apenas daquela empresa no round-robin.
+                {role === "sdr"
+                  ? "SDR vinculado a uma empresa recebe leads apenas daquela empresa no round-robin."
+                  : "Corretor vinculado a uma empresa aparece identificado na tela de distribuição de leads."}
               </p>
             )}
             <select
