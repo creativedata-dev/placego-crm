@@ -27,6 +27,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,7 @@ interface AppSidebarProps {
 export function AppSidebar({ user, navItems }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { setOpenMobile } = useSidebar();
 
   const initials = user.name
     .split(" ")
@@ -90,7 +92,7 @@ export function AppSidebar({ user, navItems }: AppSidebarProps) {
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      onClick={() => router.push(item.href)}
+                      onClick={() => { setOpenMobile(false); router.push(item.href); }}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.title}</span>
