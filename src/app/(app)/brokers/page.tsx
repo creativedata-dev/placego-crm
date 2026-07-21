@@ -17,7 +17,9 @@ import { Plus } from "lucide-react";
 import { eq, inArray } from "drizzle-orm";
 
 export default async function BrokersPage() {
-  const user = await requireRole(["admin_placego", "admin_tenant"]);
+  const user = await requireRole(["admin_placego", "admin_tenant", "sdr"]);
+
+  const isAdmin = user.role === "admin_placego" || user.role === "admin_tenant";
 
   const brokerList = await db
     .select({
@@ -38,10 +40,12 @@ export default async function BrokersPage() {
           <h1 className="text-2xl font-bold">Corretores</h1>
           <p className="text-muted-foreground text-sm">Corretores internos e de tenants</p>
         </div>
-        <Button nativeButton={false} render={<Link href="/brokers/new" />}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Corretor
-        </Button>
+        {isAdmin && (
+          <Button nativeButton={false} render={<Link href="/brokers/new" />}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Corretor
+          </Button>
+        )}
       </div>
 
       <div className="border rounded-lg">
@@ -55,7 +59,7 @@ export default async function BrokersPage() {
               <TableHead>Tenant</TableHead>
               <TableHead>Perfil</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[80px]" />
+              {isAdmin && <TableHead className="w-[80px]" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -105,11 +109,13 @@ export default async function BrokersPage() {
                       </span>
                     )}
                   </TableCell>
+                  {isAdmin && (
                   <TableCell>
                     <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/brokers/${u.id}/edit`} />}>
                       Editar
                     </Button>
                   </TableCell>
+                  )}
                 </TableRow>
               );
             })}

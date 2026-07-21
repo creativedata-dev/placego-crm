@@ -1,8 +1,9 @@
 import { db } from "@/db";
 import { leadAssignments, leads, users, tags, contactTags, tenants } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { KanbanBoard } from "./kanban-board";
+import { PipelineBrokerFilter } from "./pipeline-broker-filter";
 
 export const COLUMNS = [
   { id: "new", label: "Novo", color: "bg-blue-500" },
@@ -13,10 +14,22 @@ export const COLUMNS = [
   { id: "lost", label: "Perdido", color: "bg-red-400" },
 ] as const;
 
-export default async function PipelinePage() {
+export default async function PipelinePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ broker?: string }>;
+}) {
   const user = await requireRole(["corretor", "corretor_tenant", "admin_placego", "sdr"]);
+  const { broker: brokerFilter } = await searchParams;
 
   const isAdmin = user.role === "admin_placego" || user.role === "sdr";
+
+  // Filtro por corretor (só admin/SDR podem filtrar)
+  const whereClause = isAdmin
+    ? brokerFilter
+      ? eq(leadAssignments.brokerId, brokerFilter)
+      : undefined
+    : eq(leadAssignments.brokerId, user.id);
 
   const rows = await db
     .select({
@@ -29,7 +42,7 @@ export default async function PipelinePage() {
     .innerJoin(leads, eq(leadAssignments.leadId, leads.id))
     .innerJoin(users, eq(leadAssignments.brokerId, users.id))
     .leftJoin(tenants, eq(leads.tenantId, tenants.id))
-    .where(isAdmin ? undefined : eq(leadAssignments.brokerId, user.id))
+    .where(whereClause)
     .orderBy(leadAssignments.assignedAt);
 
   // Buscar tags dos leads (herdadas do contato original)
@@ -57,13 +70,25 @@ export default async function PipelinePage() {
       .map((r) => ({ ...r, tags: tagsByLead.get(r.lead.id) ?? [], tenantName: r.tenantName })),
   }));
 
+  // Lista de corretores para o filtro (admin/SDR only)
+  const brokerList = isAdmin
+    ? await db
+        .select({ id: users.id, name: users.name })
+        .from(users)
+        .where(inArray(users.role, ["corretor", "corretor_tenant"]))
+        .orderBy(users.name)
+    : [];
+
   return (
     <div className="space-y-4 h-full">
-      <div>
-        <h1 className="text-2xl font-bold">Pipeline</h1>
-        <p className="text-muted-foreground text-sm">
-          {isAdmin ? "Visão global de todos os corretores" : "Seus leads em atendimento"}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Pipeline</h1>
+          <p className="text-muted-foreground text-sm">
+            {isAdmin ? "Visão global de todos os corretores" : "Seus leads em atendimento"}
+          </p>
+        </div>
+        {isAdmin && <PipelineBrokerFilter brokers={brokerList} selected={brokerFilter ?? ""} />}
       </div>
       <KanbanBoard columns={columns} isAdmin={isAdmin} />
     </div>

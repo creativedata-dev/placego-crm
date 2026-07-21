@@ -143,16 +143,26 @@ export async function notifyBrokerNewLead(
   brokerPhone: string,
   brokerName: string,
   contactName: string,
-  leadId: string
+  leadId: string,
+  contactPhone?: string | null,
+  contactEmail?: string | null,
+  notes?: string | null
 ) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.placego.com.br";
   const link = `${appUrl}/pipeline`;
 
+  const details = [
+    contactPhone ? `📱 ${contactPhone}` : null,
+    contactEmail ? `✉️ ${contactEmail}` : null,
+    notes ? `📝 ${notes}` : null,
+  ].filter(Boolean).join("\n");
+
   const text =
     `🏠 *PlaceGo CRM — Novo lead para você!*\n\n` +
     `Olá, *${brokerName}*!\n\n` +
-    `Você recebeu um novo lead: *${contactName}*\n\n` +
-    `Acesse o CRM para ver os detalhes e iniciar o atendimento:\n${link}`;
+    `Você recebeu o lead *${contactName}*:\n` +
+    (details ? `${details}\n\n` : "\n") +
+    `Acesse o CRM para iniciar o atendimento:\n${link}`;
 
   return sendText(instanceName, brokerPhone, text);
 }

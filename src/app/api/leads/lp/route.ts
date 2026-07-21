@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       .returning();
 
     if (!duplicate && contact) {
-      await assignContactToNextSdr(contact.id);
+      await assignContactToNextSdr(contact.id, tenant.id);
     }
 
     return NextResponse.json({ ok: true, created: !duplicate });

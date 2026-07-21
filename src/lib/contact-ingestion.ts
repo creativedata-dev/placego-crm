@@ -88,7 +88,7 @@ export async function ingestContactMessage(params: IngestParams) {
     mediaType: mediaType ?? null,
   });
 
-  await assignContactToNextSdr(contact.id);
+  await assignContactToNextSdr(contact.id, tenantId);
   // Marcar last_interaction_at no assignment recém criado
   await db
     .update(sdrAssignments)

@@ -130,9 +130,9 @@ export async function POST(request: Request) {
           qualityScore: score,
         }).returning();
 
-        // Round-robin: só atribui ao SDR se não for duplicado
+        // Round-robin: só atribui ao SDR da mesma empresa
         if (!duplicate && contact) {
-          await assignContactToNextSdr(contact.id);
+          await assignContactToNextSdr(contact.id, tenantId);
         }
       }
     }

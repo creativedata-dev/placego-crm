@@ -36,8 +36,8 @@ export async function createContact(formData: FormData) {
     tenantId,
   }).returning();
 
-  // Round-robin: atribuir ao próximo SDR
-  await assignContactToNextSdr(contact.id);
+  // Round-robin: atribuir ao próximo SDR da mesma empresa
+  await assignContactToNextSdr(contact.id, tenantId);
 
   revalidatePath("/sdr/queue");
 }

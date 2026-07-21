@@ -76,10 +76,17 @@ export async function assignLeadToBrokers(
     if (tenant) evolutionInstance = `placego-${tenant.slug}`;
   }
 
-  // Envia email + WhatsApp para cada corretor (sem bloquear redirect)
+  // Envia email + WhatsApp para cada corretor com dados do contato
   await Promise.allSettled([
     ...brokers.map((broker) =>
-      sendLeadAssignedEmail({ brokerName: broker.name, brokerEmail: broker.email })
+      sendLeadAssignedEmail({
+        brokerName: broker.name,
+        brokerEmail: broker.email,
+        contactName: contact?.name ?? "Novo lead",
+        contactPhone: contact?.phone,
+        contactEmail: contact?.email,
+        notes: notes ?? null,
+      })
     ),
     ...brokers
       .filter((b) => b.phone && evolutionInstance)
@@ -89,7 +96,10 @@ export async function assignLeadToBrokers(
           broker.phone!,
           broker.name,
           contact?.name ?? "Novo lead",
-          leadId
+          leadId,
+          contact?.phone,
+          contact?.email,
+          notes ?? null
         )
       ),
   ]);
