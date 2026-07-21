@@ -38,6 +38,7 @@ export function UserForm({ action, tenants, defaultValues }: Props) {
   const [loading, setLoading] = useState(false);
 
   const needsTenant = role === "admin_tenant" || role === "corretor_tenant";
+  const canHaveTenant = needsTenant || role === "sdr";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -110,10 +111,17 @@ export function UserForm({ action, tenants, defaultValues }: Props) {
           ))}
         </div>
 
-        {/* Empresa — só para roles de tenant */}
-        {needsTenant && (
+        {/* Empresa — obrigatório para tenant roles, opcional para SDR */}
+        {canHaveTenant && (
           <div className="space-y-2">
-            <Label htmlFor="tenantId">Empresa vinculada *</Label>
+            <Label htmlFor="tenantId">
+              Empresa vinculada {needsTenant ? "*" : "(opcional)"}
+            </Label>
+            {role === "sdr" && (
+              <p className="text-xs text-muted-foreground">
+                SDR vinculado a uma empresa recebe leads apenas daquela empresa no round-robin.
+              </p>
+            )}
             <select
               id="tenantId"
               value={tenantId}
@@ -121,7 +129,7 @@ export function UserForm({ action, tenants, defaultValues }: Props) {
               required={needsTenant}
               className={selectClass}
             >
-              <option value="">Selecione a empresa</option>
+              <option value="">{needsTenant ? "Selecione a empresa" : "Sem empresa (pool geral)"}</option>
               {tenants.map((t) => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
