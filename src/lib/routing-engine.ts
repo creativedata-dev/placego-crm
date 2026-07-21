@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { users, brokerPreferences, leads, properties, developments } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 export interface BrokerMatch {
   brokerId: string;
@@ -47,7 +47,7 @@ export async function scoreBrokersForLead(leadId: string): Promise<BrokerMatch[]
     })
     .from(users)
     .leftJoin(brokerPreferences, eq(users.id, brokerPreferences.brokerId))
-    .where(inArray(users.role, ["corretor", "corretor_tenant"]));
+    .where(and(inArray(users.role, ["corretor", "corretor_tenant"]), eq(users.isActive, true)));
 
   // Importar tenants para nome
   const { tenants } = await import("@/db/schema");
