@@ -1,11 +1,13 @@
+import { Suspense } from "react";
 import { db } from "@/db";
-import { leads, sdrAssignments, properties, tenants, users, tags, contactTags, leadAssignments, contactMessages } from "@/db/schema";
+import { tenants, users, tags } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, desc, inArray, isNull, and, count, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { QueueFilters } from "./queue-filters";
 import { AddContactButton } from "./add-contact-button";
-import { SdrKanbanBoard } from "./sdr-kanban-board";
 import { AutoRefresh } from "./auto-refresh";
+import { KanbanData } from "./kanban-data";
+import Loading from "./loading";
 
 export const STATUS_COLUMNS = [
   { id: "novo", label: "Novos", color: "bg-blue-500" },
@@ -28,93 +30,7 @@ export default async function SDRQueuePage({
   const isAdmin = user.role === "admin_placego";
   const targetSdrId = isAdmin ? (sdrFilter ?? null) : user.id;
 
-  // Buscar todos os assignments (todas as colunas)
-  const rows = await db
-    .select({
-      assignment: sdrAssignments,
-      contact: leads,
-      propertyAddress: properties.address,
-      propertyNeighborhood: properties.neighborhood,
-      tenantName: tenants.name,
-      sdrName: users.name,
-    })
-    .from(sdrAssignments)
-    .innerJoin(leads, eq(sdrAssignments.contactId, leads.id))
-    .leftJoin(properties, eq(leads.sourcePropertyId, properties.id))
-    .leftJoin(tenants, eq(leads.tenantId, tenants.id))
-    .leftJoin(users, eq(sdrAssignments.sdrId, users.id))
-    .where(targetSdrId ? eq(sdrAssignments.sdrId, targetSdrId) : undefined)
-    .orderBy(desc(sql`COALESCE(${sdrAssignments.lastInteractionAt}, ${sdrAssignments.assignedAt})`));
-
-  // Buscar mensagens não lidas por contato
-  const contactIds = rows.map((r) => r.contact.id);
-
-  const unreadRows = contactIds.length > 0
-    ? await db
-        .select({ contactId: contactMessages.contactId, cnt: count() })
-        .from(contactMessages)
-        .where(and(
-          inArray(contactMessages.contactId, contactIds),
-          eq(contactMessages.direction, "in"),
-          isNull(contactMessages.readAt),
-        ))
-        .groupBy(contactMessages.contactId)
-    : [];
-
-  const unreadByContact = new Map(unreadRows.map((r) => [r.contactId, Number(r.cnt)]));
-
-  // Buscar tags de todos os contatos visíveis
-  const tagRows = contactIds.length > 0
-    ? await db
-        .select({ contactId: contactTags.contactId, tag: tags })
-        .from(contactTags)
-        .innerJoin(tags, eq(contactTags.tagId, tags.id))
-        .where(inArray(contactTags.contactId, contactIds))
-    : [];
-
-  const tagsByContact = new Map<string, typeof tagRows[number]["tag"][]>();
-  for (const row of tagRows) {
-    const list = tagsByContact.get(row.contactId) ?? [];
-    list.push(row.tag);
-    tagsByContact.set(row.contactId, list);
-  }
-
-  // Buscar corretores atribuídos (para contatos já distribuídos)
-  const distributedIds = rows
-    .filter((r) => r.assignment.status === "distribuido")
-    .map((r) => r.contact.id);
-
-  const brokerRows = distributedIds.length > 0
-    ? await db
-        .select({ leadId: leadAssignments.leadId, brokerId: users.id, brokerName: users.name })
-        .from(leadAssignments)
-        .innerJoin(users, eq(leadAssignments.brokerId, users.id))
-        .where(and(
-          inArray(leadAssignments.leadId, distributedIds),
-          inArray(leadAssignments.status, ["new", "contacted", "visiting", "proposal"]),
-        ))
-    : [];
-
-  const brokersByContact = new Map<string, { id: string; name: string }[]>();
-  for (const row of brokerRows) {
-    const list = brokersByContact.get(row.leadId) ?? [];
-    // deduplicar por brokerId
-    if (!list.find((b) => b.id === row.brokerId)) {
-      list.push({ id: row.brokerId, name: row.brokerName });
-    }
-    brokersByContact.set(row.leadId, list);
-  }
-
-  // Filtrar (sem filtrar por status — isso é feito nas colunas)
-  const filtered = rows.filter((r) => {
-    if (origin && r.contact.origin !== origin) return false;
-    if (tenantFilter && r.contact.tenantId !== tenantFilter) return false;
-    if (tagFilter && !(tagsByContact.get(r.contact.id) ?? []).some((t) => t.id === tagFilter)) return false;
-    if (brokerFilter && !(brokersByContact.get(r.contact.id) ?? []).some((b) => b.id === brokerFilter)) return false;
-    return true;
-  });
-
-  // Lista de empresas, SDRs, tags e corretores para filtros
+  // Dados leves para filtros e header (rápidos)
   const [tenantList, sdrList, tagList, brokerList] = await Promise.all([
     db.select({ id: tenants.id, name: tenants.name }).from(tenants),
     isAdmin
@@ -125,22 +41,8 @@ export default async function SDRQueuePage({
       .where(inArray(users.role, ["corretor", "corretor_tenant"])),
   ]);
 
-  // Agrupar por coluna
-  const columns = STATUS_COLUMNS.map((col) => ({
-    ...col,
-    cards: filtered
-      .filter((r) => r.assignment.status === col.id)
-      .map((r) => ({
-        ...r,
-        tags: tagsByContact.get(r.contact.id) ?? [],
-        brokerNames: (brokersByContact.get(r.contact.id) ?? []).map((b) => b.name),
-        unreadCount: unreadByContact.get(r.contact.id) ?? 0,
-      })),
-  }));
-
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">
@@ -148,7 +50,7 @@ export default async function SDRQueuePage({
           </h1>
           <div className="flex items-center gap-3 mt-0.5">
             <p className="text-muted-foreground text-sm">
-              {isAdmin ? "Todos os contatos de todos os SDRs" : `${filtered.length} contatos no total`}
+              {isAdmin ? "Todos os contatos de todos os SDRs" : "Seus contatos"}
             </p>
             <AutoRefresh />
           </div>
@@ -156,7 +58,6 @@ export default async function SDRQueuePage({
         <AddContactButton tenants={tenantList} />
       </div>
 
-      {/* Filtros */}
       <QueueFilters
         currentOrigin={origin}
         currentTenant={tenantFilter}
@@ -170,8 +71,16 @@ export default async function SDRQueuePage({
         isAdmin={isAdmin}
       />
 
-      {/* Kanban */}
-      <SdrKanbanBoard columns={columns} isAdmin={isAdmin} />
+      <Suspense fallback={<Loading />}>
+        <KanbanData
+          isAdmin={isAdmin}
+          targetSdrId={targetSdrId}
+          origin={origin}
+          tenantFilter={tenantFilter}
+          tagFilter={tagFilter}
+          brokerFilter={brokerFilter}
+        />
+      </Suspense>
     </div>
   );
 }
