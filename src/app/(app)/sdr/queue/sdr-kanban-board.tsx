@@ -40,8 +40,20 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const [activeColIdx, setActiveColIdx] = useState(0);
+  // accordion mobile: primeira coluna com cards expandida por padrão
+  const [openCols, setOpenCols] = useState<Set<string>>(() => {
+    const first = initialColumns.find((c) => c.id !== "arquivado" && c.cards.length > 0);
+    return new Set(first ? [first.id] : [initialColumns[0]?.id ?? ""]);
+  });
   const [, startTransition] = useTransition();
+
+  function toggleCol(id: string) {
+    setOpenCols((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   const columns = initialColumns.map((col) => ({
     ...col,
@@ -82,76 +94,58 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
     });
   }
 
-  const activeCol = mainColumns[activeColIdx];
-
   return (
     <div className="space-y-4">
-      {/* ── Mobile: coluna única com navegação por tabs ── */}
-      <div className="md:hidden space-y-3 overflow-x-hidden">
-        {/* Tab pills */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {mainColumns.map((col, idx) => (
-            <button
-              key={col.id}
-              onClick={() => setActiveColIdx(idx)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${
-                activeColIdx === idx
-                  ? "bg-foreground text-background border-foreground"
-                  : "bg-background text-muted-foreground border-border"
-              }`}
-            >
-              <span className={`h-2 w-2 rounded-full ${col.color}`} />
-              {col.label}
-              {col.cards.length > 0 && (
-                <span className={`text-[10px] px-1.5 rounded-full ${activeColIdx === idx ? "bg-background/20" : "bg-muted"}`}>
+      {/* ── Mobile: accordion vertical colapsável ── */}
+      <div className="md:hidden space-y-2 overflow-x-hidden">
+        {mainColumns.map((col) => {
+          const isOpen = openCols.has(col.id);
+          const isLocked = NON_DRAGGABLE_SOURCE.has(col.id);
+          return (
+            <div key={col.id} className="border rounded-xl overflow-hidden">
+              {/* Header coluna */}
+              <button
+                onClick={() => toggleCol(col.id)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left active:bg-muted/70"
+              >
+                <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${col.color}`} />
+                <span className="font-semibold text-sm flex-1">{col.label}</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  col.cards.length > 0 ? "bg-foreground/10 text-foreground" : "bg-muted text-muted-foreground"
+                }`}>
                   {col.cards.length}
                 </span>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Cards expandidos */}
+              {isOpen && (
+                <div className="flex flex-col gap-2 p-2 bg-background">
+                  {col.cards.length === 0 ? (
+                    <div className="text-center py-8 space-y-1">
+                      <p className="text-2xl">😴</p>
+                      <p className="text-sm font-medium text-muted-foreground">Nenhum contato aqui</p>
+                      <p className="text-xs text-muted-foreground/70">Aguardando novos leads</p>
+                    </div>
+                  ) : (
+                    col.cards.map((card) => (
+                      <SdrLeadCard
+                        key={card.assignment.id}
+                        {...card}
+                        isAdmin={isAdmin}
+                        currentColId={col.id}
+                        allColumns={mainColumns.map((c) => ({ id: c.id, label: c.label }))}
+                        onMoveCard={isLocked ? undefined : moveCard}
+                        onDragStart={undefined}
+                        onDragEnd={() => {}}
+                      />
+                    ))
+                  )}
+                </div>
               )}
-            </button>
-          ))}
-        </div>
-
-        {/* Navegação prev/next */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setActiveColIdx((i) => Math.max(0, i - 1))}
-            disabled={activeColIdx === 0}
-            className="p-1.5 rounded-lg border disabled:opacity-30"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 rounded-full ${activeCol?.color}`} />
-            <span className="font-semibold text-sm">{activeCol?.label}</span>
-            <Badge variant="secondary" className="text-xs">{activeCol?.cards.length}</Badge>
-          </div>
-          <button
-            onClick={() => setActiveColIdx((i) => Math.min(mainColumns.length - 1, i + 1))}
-            disabled={activeColIdx === mainColumns.length - 1}
-            className="p-1.5 rounded-lg border disabled:opacity-30"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Cards da coluna ativa */}
-        <div className="flex flex-col gap-2">
-          {activeCol?.cards.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl bg-muted/20">Vazio</p>
-          )}
-          {activeCol?.cards.map((card) => (
-            <SdrLeadCard
-              key={card.assignment.id}
-              {...card}
-              isAdmin={isAdmin}
-              currentColId={activeCol.id}
-              allColumns={mainColumns.map((c) => ({ id: c.id, label: c.label }))}
-              onMoveCard={NON_DRAGGABLE_SOURCE.has(activeCol.id) ? undefined : moveCard}
-              onDragStart={undefined}
-              onDragEnd={() => {}}
-            />
-          ))}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* ── Desktop: kanban horizontal com drag ── */}
@@ -173,7 +167,10 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
             </div>
             <div className="flex flex-col gap-2 p-2 flex-1 min-h-[120px]">
               {col.cards.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-6">Vazio</p>
+                <div className="text-center py-6 space-y-1">
+                  <p className="text-lg">😴</p>
+                  <p className="text-xs text-muted-foreground">Nenhum contato aqui</p>
+                </div>
               )}
               {col.cards.map((card) => (
                 <SdrLeadCard
@@ -207,7 +204,7 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
           {archivedOpen && (
             <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {archivedColumn.cards.length === 0 && (
-                <p className="text-xs text-muted-foreground py-4 col-span-full text-center">Nenhum contato arquivado</p>
+                <p className="text-xs text-muted-foreground py-4 col-span-full text-center">📦 Nenhum contato arquivado</p>
               )}
               {archivedColumn.cards.map((card) => (
                 <SdrLeadCard

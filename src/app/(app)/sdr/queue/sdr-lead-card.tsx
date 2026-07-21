@@ -11,9 +11,9 @@ import { CheckCircle, Share2, Archive } from "lucide-react";
 import Link from "next/link";
 
 const ORIGIN_LABELS: Record<string, string> = {
-  meta_leadgen: "Lead Ads", meta_ads: "Meta Ads", meta_dm_instagram: "Instagram DM",
-  meta_dm_facebook: "Facebook DM", meta_comment: "Comentário", whatsapp: "WhatsApp",
-  email: "Email", lp: "Landing Page", indicacao: "Indicação", manual: "Manual", portal: "Portal",
+  meta_leadgen: "🎯 Lead Ads", meta_ads: "🎯 Meta Ads", meta_dm_instagram: "📸 Instagram",
+  meta_dm_facebook: "👤 Facebook DM", meta_comment: "💬 Comentário", whatsapp: "💬 WhatsApp",
+  email: "✉️ Email", lp: "🌐 Landing Page", indicacao: "🤝 Indicação", manual: "✏️ Manual", portal: "🏠 Portal",
 };
 
 const ORIGIN_COLORS: Record<string, string> = {
@@ -95,7 +95,7 @@ export function SdrLeadCard({
 
       <div className="flex items-center gap-1.5 flex-wrap">
         <ScoreBadge score={contact.qualityScore ?? 0} compact />
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${ORIGIN_COLORS[contact.origin] ?? ORIGIN_COLORS.manual}`}>
+        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ORIGIN_COLORS[contact.origin] ?? ORIGIN_COLORS.manual}`}>
           {ORIGIN_LABELS[contact.origin] ?? contact.origin}
         </span>
       </div>

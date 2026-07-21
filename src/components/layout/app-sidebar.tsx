@@ -113,7 +113,7 @@ export function AppSidebar({ user, navItems }: AppSidebarProps) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.name}</p>
             <Badge variant="secondary" className="text-xs mt-0.5">
-              {user.role.replace("_", " ")}
+              {({ admin_placego: "Admin PlaceGo", sdr: "SDR", corretor: "Corretor", admin_tenant: "Admin Empresa", corretor_tenant: "Corretor Empresa" } as Record<string,string>)[user.role] ?? user.role}
             </Badge>
           </div>
           <form action="/auth/signout" method="post">
