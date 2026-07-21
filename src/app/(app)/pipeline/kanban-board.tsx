@@ -16,6 +16,15 @@ const COL_CARD_BG: Record<string, string> = {
   lost:      "bg-red-50    dark:bg-red-950/30    border-red-100    dark:border-red-900",
 };
 
+const COL_BG: Record<string, string> = {
+  new:       "bg-blue-100/60   dark:bg-blue-950/50",
+  contacted: "bg-yellow-100/60 dark:bg-yellow-950/50",
+  visiting:  "bg-purple-100/60 dark:bg-purple-950/50",
+  proposal:  "bg-orange-100/60 dark:bg-orange-950/50",
+  won:       "bg-green-100/60  dark:bg-green-950/50",
+  lost:      "bg-red-100/60    dark:bg-red-950/50",
+};
+
 type ColumnData = {
   id: string;
   label: string;
@@ -84,10 +93,10 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
         {columns.map((col) => {
           const isOpen = openCols.has(col.id);
           return (
-            <div key={col.id} className="border rounded-xl overflow-hidden">
+            <div key={col.id} className={`border rounded-xl overflow-hidden ${COL_BG[col.id] ?? "bg-muted/30"}`}>
               <button
                 onClick={() => toggleCol(col.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left active:bg-muted/70"
+                className="w-full flex items-center gap-3 px-4 py-3.5 hover:brightness-95 transition-all text-left active:brightness-90"
               >
                 <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${col.color}`} />
                 <span className="font-semibold text-sm flex-1">{col.label}</span>
@@ -137,9 +146,9 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
         {columns.map((col) => (
           <div
             key={col.id}
-            className={`flex flex-col min-w-[260px] w-[260px] rounded-xl border bg-muted/40 transition-colors ${
-              dragOver === col.id ? "ring-2 ring-primary bg-primary/5" : ""
-            }`}
+            className={`flex flex-col min-w-[260px] w-[260px] rounded-xl border transition-colors ${
+              COL_BG[col.id] ?? "bg-muted/40"
+            } ${dragOver === col.id ? "ring-2 ring-primary brightness-95" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(col.id); }}
             onDragLeave={() => setDragOver(null)}
             onDrop={() => handleDrop(col.id)}

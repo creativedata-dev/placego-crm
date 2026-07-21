@@ -19,6 +19,17 @@ const COL_CARD_BG: Record<string, string> = {
   arquivado:   "bg-gray-50   dark:bg-gray-900/30   border-gray-200   dark:border-gray-800",
 };
 
+// Background da coluna — um tom mais escuro que os cards
+const COL_BG: Record<string, string> = {
+  novo:        "bg-blue-100/60   dark:bg-blue-950/50",
+  em_contato:  "bg-yellow-100/60 dark:bg-yellow-950/50",
+  aguardando:  "bg-orange-100/60 dark:bg-orange-950/50",
+  qualificado: "bg-green-100/60  dark:bg-green-950/50",
+  distribuido: "bg-purple-100/60 dark:bg-purple-950/50",
+  invalido:    "bg-red-100/60    dark:bg-red-950/50",
+  arquivado:   "bg-gray-100/60   dark:bg-gray-900/50",
+};
+
 type CardData = {
   assignment: SdrAssignment;
   contact: Lead;
@@ -113,11 +124,11 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
           const isOpen = openCols.has(col.id);
           const isLocked = NON_DRAGGABLE_SOURCE.has(col.id);
           return (
-            <div key={col.id} className="border rounded-xl overflow-hidden">
+            <div key={col.id} className={`border rounded-xl overflow-hidden ${COL_BG[col.id] ?? "bg-muted/30"}`}>
               {/* Header coluna */}
               <button
                 onClick={() => toggleCol(col.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left active:bg-muted/70"
+                className="w-full flex items-center gap-3 px-4 py-3.5 hover:brightness-95 transition-all text-left active:brightness-90"
               >
                 <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${col.color}`} />
                 <span className="font-semibold text-sm flex-1">{col.label}</span>
@@ -165,9 +176,9 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
         {mainColumns.map((col) => (
           <div
             key={col.id}
-            className={`flex flex-col min-w-[260px] w-[260px] rounded-xl border bg-muted/40 transition-colors ${
-              dragOver === col.id ? "ring-2 ring-primary bg-primary/5" : ""
-            }`}
+            className={`flex flex-col min-w-[260px] w-[260px] rounded-xl border transition-colors ${
+              COL_BG[col.id] ?? "bg-muted/40"
+            } ${dragOver === col.id ? "ring-2 ring-primary brightness-95" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(col.id); }}
             onDragLeave={() => setDragOver(null)}
             onDrop={() => handleDrop(col.id)}
