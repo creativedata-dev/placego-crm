@@ -49,12 +49,12 @@ export default async function DashboardPage() {
       t.name AS tenant_name,
       t.type AS tenant_type,
       COUNT(DISTINCT l.id) AS total_leads,
-      COUNT(DISTINCT CASE WHEN l.status = 'qualified' THEN l.id END) AS qualified_leads,
+      COUNT(DISTINCT CASE WHEN sa.status = 'qualificado' THEN l.id END) AS qualified_leads,
       COUNT(DISTINCT CASE WHEN la.status = 'won' THEN la.id END) AS won_leads
     FROM tenants t
-    LEFT JOIN properties p ON p.tenant_id = t.id
-    LEFT JOIN leads l ON l.source_property_id = p.id
+    LEFT JOIN leads l ON l.tenant_id = t.id
       AND l.created_at >= ${thirtyDaysAgoISO}
+    LEFT JOIN sdr_assignments sa ON sa.contact_id = l.id
     LEFT JOIN lead_assignments la ON la.lead_id = l.id AND la.status = 'won'
     GROUP BY t.id, t.name, t.type
     ORDER BY total_leads DESC
