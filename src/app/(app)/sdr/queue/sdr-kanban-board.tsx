@@ -87,9 +87,9 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
   return (
     <div className="space-y-4">
       {/* ── Mobile: coluna única com navegação por tabs ── */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-3 overflow-x-hidden">
         {/* Tab pills */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {mainColumns.map((col, idx) => (
             <button
               key={col.id}

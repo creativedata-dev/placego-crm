@@ -62,9 +62,9 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
   return (
     <>
       {/* ── Mobile: coluna única com tabs ── */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-3 overflow-x-hidden">
         {/* Tabs */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {columns.map((col, idx) => (
             <button
               key={col.id}
