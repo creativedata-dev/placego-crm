@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { users, brokerPreferences } from "@/db/schema";
+import { users, brokerPreferences, tenants } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { updateBrokerPreferences } from "@/app/actions/brokers";
@@ -20,9 +20,10 @@ export default async function EditBrokerPage({ params }: { params: Promise<{ id:
   await requireRole(["admin_placego", "admin_tenant"]);
   const { id } = await params;
 
-  const [[broker], [prefs]] = await Promise.all([
+  const [[broker], [prefs], tenantList] = await Promise.all([
     db.select().from(users).where(eq(users.id, id)).limit(1),
     db.select().from(brokerPreferences).where(eq(brokerPreferences.brokerId, id)).limit(1),
+    db.select({ id: tenants.id, name: tenants.name }).from(tenants),
   ]);
 
   if (!broker) notFound();
@@ -38,11 +39,13 @@ export default async function EditBrokerPage({ params }: { params: Promise<{ id:
 
       <BrokerEditForm
         action={action}
+        tenants={tenantList}
         broker={{
           name: broker.name,
           email: broker.email,
           phone: broker.phone ?? "",
           isActive: broker.isActive,
+          tenantId: broker.tenantId ?? "",
         }}
         prefs={{
           creci: prefs?.creci ?? "",

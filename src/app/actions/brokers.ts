@@ -92,11 +92,13 @@ export async function updateBrokerPreferences(brokerId: string, formData: FormDa
   const email = formData.get("email") as string;
   const phone = formData.get("phone") as string;
   const isActive = formData.get("isActive") !== "false";
+  const tenantId = (formData.get("tenantId") as string) || null;
   await db.update(users).set({
     ...(name && { name }),
     ...(email && { email }),
     phone: phone || null,
     isActive,
+    tenantId,
     updatedAt: new Date(),
   }).where(eq(users.id, brokerId));
 
