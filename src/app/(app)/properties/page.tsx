@@ -77,7 +77,41 @@ export default async function PropertiesPage() {
       {/* Imóveis */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Imóveis Avulsos</h2>
-        <div className="border rounded-lg">
+
+        {/* Mobile */}
+        <div className="sm:hidden space-y-2">
+          {propList.length === 0 && (
+            <p className="text-center text-muted-foreground py-8 text-sm">Nenhum imóvel cadastrado.</p>
+          )}
+          {propList.map(({ property: p, tenantName }) => (
+            <div key={p.id} className="border rounded-xl p-3 space-y-2 bg-card">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{p.address}</p>
+                  <p className="text-xs text-muted-foreground">{p.neighborhood}, {p.city}</p>
+                </div>
+                <Badge variant={STATUS_VARIANT[p.status]} className="shrink-0 text-xs">{STATUS_LABELS[p.status]}</Badge>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-xs">{TYPE_LABELS[p.type] ?? p.type}</Badge>
+                {p.price && (
+                  <span className="text-xs font-medium text-green-700">
+                    {Number(p.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </span>
+                )}
+                {tenantName && <span className="text-xs text-muted-foreground">🏢 {tenantName}</span>}
+              </div>
+              <div className="pt-1 border-t">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" nativeButton={false} render={<Link href={`/properties/${p.id}/edit`} />}>
+                  Editar
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden sm:block border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
@@ -100,26 +134,16 @@ export default async function PropertiesPage() {
               )}
               {propList.map(({ property: p, tenantName }) => (
                 <TableRow key={p.id}>
-                  <TableCell>
-                    <Badge variant="outline">{TYPE_LABELS[p.type] ?? p.type}</Badge>
-                  </TableCell>
+                  <TableCell><Badge variant="outline">{TYPE_LABELS[p.type] ?? p.type}</Badge></TableCell>
                   <TableCell className="text-sm">{p.address}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {p.neighborhood}, {p.city}
-                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{p.neighborhood}, {p.city}</TableCell>
                   <TableCell className="text-sm">
-                    {p.price
-                      ? Number(p.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                      : "—"}
+                    {p.price ? Number(p.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{tenantName ?? "—"}</TableCell>
+                  <TableCell><Badge variant={STATUS_VARIANT[p.status]}>{STATUS_LABELS[p.status]}</Badge></TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[p.status]}>{STATUS_LABELS[p.status]}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/properties/${p.id}/edit`} />}>
-                      Editar
-                    </Button>
+                    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/properties/${p.id}/edit`} />}>Editar</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -131,7 +155,42 @@ export default async function PropertiesPage() {
       {/* Empreendimentos */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Empreendimentos</h2>
-        <div className="border rounded-lg">
+
+        {/* Mobile */}
+        <div className="sm:hidden space-y-2">
+          {devList.length === 0 && (
+            <p className="text-center text-muted-foreground py-8 text-sm">Nenhum empreendimento cadastrado.</p>
+          )}
+          {devList.map(({ dev: d, tenantName }) => (
+            <div key={d.id} className="border rounded-xl p-3 space-y-2 bg-card">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{d.name}</p>
+                  <p className="text-xs text-muted-foreground">{d.city}</p>
+                </div>
+                <Badge variant={STATUS_VARIANT[d.status]} className="shrink-0 text-xs">{STATUS_LABELS[d.status]}</Badge>
+              </div>
+              {(d.minPrice || tenantName) && (
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {d.minPrice && d.maxPrice && (
+                    <span className="font-medium text-green-700">
+                      {Number(d.minPrice).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} – {Number(d.maxPrice).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </span>
+                  )}
+                  {tenantName && <span>🏢 {tenantName}</span>}
+                </div>
+              )}
+              <div className="pt-1 border-t">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" nativeButton={false} render={<Link href={`/properties/developments/${d.id}/edit`} />}>
+                  Editar
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden sm:block border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
@@ -161,13 +220,9 @@ export default async function PropertiesPage() {
                       : "—"}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{tenantName ?? "—"}</TableCell>
+                  <TableCell><Badge variant={STATUS_VARIANT[d.status]}>{STATUS_LABELS[d.status]}</Badge></TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[d.status]}>{STATUS_LABELS[d.status]}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/properties/developments/${d.id}/edit`} />}>
-                      Editar
-                    </Button>
+                    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/properties/developments/${d.id}/edit`} />}>Editar</Button>
                   </TableCell>
                 </TableRow>
               ))}

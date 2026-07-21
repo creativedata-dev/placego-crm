@@ -121,10 +121,48 @@ export default async function TenantDashboardPage() {
         </Card>
       </div>
 
-      {/* Tabela de leads */}
+      {/* Leads recentes */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Leads recentes</h2>
-        <div className="border rounded-lg">
+
+        {/* Mobile */}
+        <div className="sm:hidden space-y-2">
+          {recentLeads.length === 0 && (
+            <p className="text-center text-muted-foreground py-8 text-sm">Nenhum lead recebido ainda.</p>
+          )}
+          {recentLeads.map((lead) => {
+            const assignment = tenantLeads.find((r) => r.lead.id === lead.id && r.assignments);
+            return (
+              <div key={lead.id} className="border rounded-xl p-3 space-y-2 bg-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{lead.name}</p>
+                    <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {new Date(lead.createdAt).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  <Badge variant="outline" className="text-xs">{STATUS_LABELS[lead.status] ?? lead.status}</Badge>
+                  {assignment?.assignments ? (
+                    <Badge variant={ASSIGNMENT_COLORS[assignment.assignments.status] as any} className="text-xs">
+                      {ASSIGNMENT_LABELS[assignment.assignments.status]}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Não distribuído</span>
+                  )}
+                  {assignment?.brokerName && (
+                    <span className="text-xs text-muted-foreground">👤 {assignment.brokerName}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden sm:block border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
@@ -145,9 +183,7 @@ export default async function TenantDashboardPage() {
                 </TableRow>
               )}
               {recentLeads.map((lead) => {
-                const assignment = tenantLeads.find(
-                  (r) => r.lead.id === lead.id && r.assignments
-                );
+                const assignment = tenantLeads.find((r) => r.lead.id === lead.id && r.assignments);
                 return (
                   <TableRow key={lead.id}>
                     <TableCell>
@@ -158,19 +194,12 @@ export default async function TenantDashboardPage() {
                       {lead.origin.replace("_", " ")}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {STATUS_LABELS[lead.status] ?? lead.status}
-                      </Badge>
+                      <Badge variant="outline" className="text-xs">{STATUS_LABELS[lead.status] ?? lead.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {assignment?.brokerName ?? "—"}
-                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{assignment?.brokerName ?? "—"}</TableCell>
                     <TableCell>
                       {assignment?.assignments ? (
-                        <Badge
-                          variant={ASSIGNMENT_COLORS[assignment.assignments.status] as any}
-                          className="text-xs"
-                        >
+                        <Badge variant={ASSIGNMENT_COLORS[assignment.assignments.status] as any} className="text-xs">
                           {ASSIGNMENT_LABELS[assignment.assignments.status]}
                         </Badge>
                       ) : (
