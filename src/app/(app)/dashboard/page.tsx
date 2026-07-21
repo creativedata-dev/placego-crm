@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { FunnelChart } from "./funnel-chart";
 import { redirect } from "next/navigation";
+import { Users, Star, Trophy, TrendingUp, XCircle } from "lucide-react";
 
 const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
@@ -90,22 +91,94 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {[
-          { label: "Leads capturados", value: total, color: "" },
-          { label: "Na fila (novos)", value: newLeads, color: "text-blue-600" },
-          { label: "Qualificados", value: qualified, color: "text-green-600" },
-          { label: "Ganhos", value: won, color: "text-emerald-600" },
-          { label: "Taxa de conversão", value: `${conversionRate}%`, color: conversionRate >= 20 ? "text-green-600" : "text-yellow-600" },
-        ].map((kpi) => (
-          <Card key={kpi.label}>
-            <CardHeader className="pb-1 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground leading-tight">{kpi.label}</CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+        {/* Capturados */}
+        <Card className="border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-md">
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-indigo-100">Capturados</CardTitle>
+              <Users className="h-4 w-4 text-indigo-200" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{total}</p>
+            <p className="text-xs text-indigo-200 mt-1">últimos 30 dias</p>
+          </CardContent>
+        </Card>
+
+        {/* Na fila */}
+        <Card className="border-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md">
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-blue-100">Na fila</CardTitle>
+              <Star className="h-4 w-4 text-blue-200" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{newLeads}</p>
+            <p className="text-xs text-blue-200 mt-1">aguardando SDR</p>
+          </CardContent>
+        </Card>
+
+        {/* Qualificados */}
+        <Card className="border-0 bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md">
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-amber-100">Qualificados</CardTitle>
+              <TrendingUp className="h-4 w-4 text-amber-200" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{qualified}</p>
+            <div className="mt-2 h-1.5 bg-amber-400/40 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white/70 rounded-full"
+                style={{ width: total > 0 ? `${Math.min(100, Math.round((qualified / total) * 100))}%` : "0%" }}
+              />
+            </div>
+            <p className="text-xs text-amber-200 mt-1">
+              {total > 0 ? `${Math.round((qualified / total) * 100)}%` : "0%"} do total
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Ganhos */}
+        <Card className="border-0 bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-md">
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-emerald-100">Ganhos</CardTitle>
+              <Trophy className="h-4 w-4 text-emerald-200" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{won}</p>
+            <p className="text-xs text-emerald-200 mt-1">negócios fechados</p>
+          </CardContent>
+        </Card>
+
+        {/* Taxa de conversão */}
+        <Card className={`border-0 shadow-md text-white ${conversionRate >= 20
+          ? "bg-gradient-to-br from-teal-500 to-cyan-600"
+          : conversionRate >= 10
+          ? "bg-gradient-to-br from-yellow-500 to-amber-600"
+          : "bg-gradient-to-br from-rose-500 to-red-600"
+        }`}>
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-white/80">Conversão</CardTitle>
+              <XCircle className="h-4 w-4 text-white/60" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{conversionRate}%</p>
+            <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white/60 rounded-full"
+                style={{ width: `${Math.min(100, conversionRate)}%` }}
+              />
+            </div>
+            <p className="text-xs text-white/70 mt-1">qualif. → ganho</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -140,14 +213,32 @@ export default async function DashboardPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {(brokerStats as any[]).map((b, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium text-sm">{b.broker_name}</TableCell>
-                    <TableCell className="text-center text-sm">{b.total_assigned}</TableCell>
-                    <TableCell className="text-center text-sm text-blue-600">{b.in_progress}</TableCell>
-                    <TableCell className="text-center text-sm text-emerald-600 font-semibold">{b.won}</TableCell>
-                  </TableRow>
-                ))}
+                {(brokerStats as any[]).map((b, i) => {
+                  const brokerConv = b.total_assigned > 0
+                    ? Math.round((Number(b.won) / Number(b.total_assigned)) * 100) : 0;
+                  return (
+                    <TableRow key={i} className={i === 0 ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}>
+                      <TableCell className="font-medium text-sm flex items-center gap-2">
+                        {i === 0 && <span className="text-amber-500">🥇</span>}
+                        {i === 1 && <span className="text-slate-400">🥈</span>}
+                        {i === 2 && <span className="text-amber-600">🥉</span>}
+                        {b.broker_name}
+                      </TableCell>
+                      <TableCell className="text-center text-sm">{b.total_assigned}</TableCell>
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                          {b.in_progress}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                          {b.won}
+                          {brokerConv > 0 && <span className="text-emerald-500/70">· {brokerConv}%</span>}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -180,22 +271,38 @@ export default async function DashboardPage() {
               )}
               {(tenantStats as any[]).map((t, i) => {
                 const conv = t.qualified_leads > 0
-                  ? Math.round((t.won_leads / t.qualified_leads) * 100)
+                  ? Math.round((Number(t.won_leads) / Number(t.qualified_leads)) * 100)
                   : 0;
+                const TYPE_COLORS: Record<string, string> = {
+                  imobiliaria:  "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300",
+                  incorporadora: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300",
+                  construtora:  "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300",
+                  corretor:     "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300",
+                };
                 return (
                   <TableRow key={i}>
                     <TableCell className="font-medium text-sm">{t.tenant_name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className={`text-xs ${TYPE_COLORS[t.tenant_type] ?? ""}`}>
                         {TYPE_LABELS[t.tenant_type] ?? t.tenant_type}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center text-sm">{t.total_leads}</TableCell>
-                    <TableCell className="text-center text-sm text-green-600">{t.qualified_leads}</TableCell>
-                    <TableCell className="text-center text-sm text-emerald-600 font-semibold">{t.won_leads}</TableCell>
+                    <TableCell className="text-center">
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                        {t.qualified_leads}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                        {t.won_leads}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right text-sm">
-                      <span className={conv >= 20 ? "text-green-600 font-semibold" : "text-muted-foreground"}>
-                        {conv}%
+                      <span className={`inline-flex items-center gap-1 font-semibold ${
+                        conv >= 20 ? "text-emerald-600" : conv >= 10 ? "text-amber-600" : "text-muted-foreground"
+                      }`}>
+                        {conv >= 20 ? "🟢" : conv >= 10 ? "🟡" : "🔴"} {conv}%
                       </span>
                     </TableCell>
                   </TableRow>

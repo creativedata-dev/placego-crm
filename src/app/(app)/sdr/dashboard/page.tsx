@@ -7,6 +7,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Users, Clock, XCircle, ListChecks } from "lucide-react";
 
 const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
@@ -102,21 +103,75 @@ export default async function SDRDashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: "Leads tratados", value: totalHandled, color: "" },
-          { label: "Tempo médio de qualif.", value: formatMinutes(avgMinutes), color: "" },
-          { label: "Taxa de rejeição", value: `${rejectionRate}%`, color: rejectionRate > 30 ? "text-red-500" : "" },
-          { label: "Na fila agora", value: inQueue, color: inQueue > 10 ? "text-red-500" : "" },
-        ].map((kpi) => (
-          <Card key={kpi.label}>
-            <CardHeader className="pb-1 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground leading-tight">{kpi.label}</CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+        {/* Leads tratados */}
+        <Card className="border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-md">
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-indigo-100">Leads tratados</CardTitle>
+              <Users className="h-4 w-4 text-indigo-200" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{totalHandled}</p>
+            <p className="text-xs text-indigo-200 mt-1">últimos 30 dias</p>
+          </CardContent>
+        </Card>
+
+        {/* Tempo médio */}
+        <Card className="border-0 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-md">
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-cyan-100">Tempo médio</CardTitle>
+              <Clock className="h-4 w-4 text-cyan-200" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-2xl font-bold leading-tight">{formatMinutes(avgMinutes)}</p>
+            <p className="text-xs text-cyan-200 mt-1">para qualificar</p>
+          </CardContent>
+        </Card>
+
+        {/* Taxa de rejeição */}
+        <Card className={`border-0 shadow-md text-white ${
+          rejectionRate > 30
+            ? "bg-gradient-to-br from-rose-500 to-red-600"
+            : "bg-gradient-to-br from-amber-500 to-orange-500"
+        }`}>
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-white/80">Taxa de rejeição</CardTitle>
+              <XCircle className="h-4 w-4 text-white/60" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{rejectionRate}%</p>
+            <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div className="h-full bg-white/60 rounded-full" style={{ width: `${Math.min(100, rejectionRate)}%` }} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Na fila */}
+        <Card className={`border-0 shadow-md text-white ${
+          inQueue > 10
+            ? "bg-gradient-to-br from-rose-500 to-red-600"
+            : inQueue > 5
+            ? "bg-gradient-to-br from-amber-500 to-yellow-600"
+            : "bg-gradient-to-br from-emerald-500 to-green-600"
+        }`}>
+          <CardHeader className="pb-1 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-white/80">Na fila agora</CardTitle>
+              <ListChecks className="h-4 w-4 text-white/60" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4 px-4">
+            <p className="text-3xl font-bold">{inQueue}</p>
+            <p className="text-xs text-white/70 mt-1">
+              {inQueue > 10 ? "⚠️ fila crítica" : inQueue > 5 ? "atenção" : "tudo ok"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
