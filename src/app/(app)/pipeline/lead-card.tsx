@@ -45,6 +45,7 @@ interface Props {
   onMoveCard?: (assignmentId: string, targetColId: string) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
+  cardBg?: string;
 }
 
 export function LeadCard({
@@ -59,6 +60,7 @@ export function LeadCard({
   onMoveCard,
   onDragStart,
   onDragEnd,
+  cardBg,
 }: Props) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [lossOpen, setLossOpen] = useState(false);
@@ -88,7 +90,7 @@ export function LeadCard({
         draggable
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
-        className="bg-background border rounded-lg p-3 cursor-grab active:cursor-grabbing shadow-xs hover:shadow-sm transition-shadow space-y-2"
+        className={`border rounded-lg p-3 cursor-grab active:cursor-grabbing shadow-xs hover:shadow-md transition-all space-y-2 ${cardBg ?? "bg-background"}`}
       >
         {/* Nome + dias */}
         <div className="flex items-start justify-between gap-1">

@@ -6,7 +6,18 @@ import { updateSdrAssignmentStatus } from "@/app/actions/contacts";
 import { SdrLeadCard } from "./sdr-lead-card";
 import type { STATUS_COLUMNS } from "./page";
 import type { SdrAssignment, Lead, Tag } from "@/db/schema";
-import { ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+
+// Tailwind classes precisam ser estáticas — mapa colId → bg tintado do card
+const COL_CARD_BG: Record<string, string> = {
+  novo:        "bg-blue-50   dark:bg-blue-950/30   border-blue-100   dark:border-blue-900",
+  em_contato:  "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900",
+  aguardando:  "bg-orange-50 dark:bg-orange-950/30 border-orange-100 dark:border-orange-900",
+  qualificado: "bg-green-50  dark:bg-green-950/30  border-green-100  dark:border-green-900",
+  distribuido: "bg-purple-50 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900",
+  invalido:    "bg-red-50    dark:bg-red-950/30    border-red-100    dark:border-red-900",
+  arquivado:   "bg-gray-50   dark:bg-gray-900/30   border-gray-200   dark:border-gray-800",
+};
 
 type CardData = {
   assignment: SdrAssignment;
@@ -138,6 +149,7 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
                         onMoveCard={isLocked ? undefined : moveCard}
                         onDragStart={undefined}
                         onDragEnd={() => {}}
+                        cardBg={COL_CARD_BG[col.id]}
                       />
                     ))
                   )}
@@ -182,6 +194,7 @@ export function SdrKanbanBoard({ columns: initialColumns, isAdmin }: Props) {
                   onMoveCard={undefined}
                   onDragStart={NON_DRAGGABLE_SOURCE.has(col.id) ? undefined : () => setDragging(card.assignment.id)}
                   onDragEnd={() => setDragging(null)}
+                  cardBg={COL_CARD_BG[col.id]}
                 />
               ))}
             </div>

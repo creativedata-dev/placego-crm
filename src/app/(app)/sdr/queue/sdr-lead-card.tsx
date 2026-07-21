@@ -48,11 +48,12 @@ interface Props {
   onMoveCard?: (assignmentId: string, targetColId: string) => void;
   onDragStart?: () => void;
   onDragEnd: () => void;
+  cardBg?: string;
 }
 
 export function SdrLeadCard({
   assignment, contact, propertyAddress, propertyNeighborhood, tenantName, sdrName, tags, brokerNames,
-  unreadCount, isAdmin, currentColId, allColumns, onMoveCard, onDragStart, onDragEnd,
+  unreadCount, isAdmin, currentColId, allColumns, onMoveCard, onDragStart, onDragEnd, cardBg,
 }: Props) {
   const [isPending, startTransition] = useTransition();
 
@@ -79,7 +80,7 @@ export function SdrLeadCard({
       draggable={!!onDragStart}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`bg-background border rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow space-y-2 ${onDragStart ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+      className={`border rounded-lg p-3 shadow-xs hover:shadow-md transition-all space-y-2 ${cardBg ?? "bg-background"} ${onDragStart ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
     >
       <div className="flex items-start justify-between gap-1">
         <a href={`/sdr/contacts/${contact.id}`} className="font-semibold text-sm leading-tight hover:underline hover:text-primary flex items-center gap-1.5">
