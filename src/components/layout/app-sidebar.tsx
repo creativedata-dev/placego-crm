@@ -70,9 +70,12 @@ export function AppSidebar({ user, navItems }: AppSidebarProps) {
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b px-4 py-3">
+      <SidebarHeader className="border-b px-4 py-3.5">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-lg tracking-tight text-primary">
+          <div className="h-7 w-7 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+            <span className="text-xs font-black text-white">PG</span>
+          </div>
+          <span className="font-bold text-base tracking-tight text-sidebar-foreground">
             PlaceGo CRM
           </span>
         </div>
@@ -108,18 +111,18 @@ export function AppSidebar({ user, navItems }: AppSidebarProps) {
       <SidebarFooter className="border-t p-4">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            <AvatarFallback className="text-xs bg-sidebar-accent text-sidebar-foreground">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user.name}</p>
-            <Badge variant="secondary" className="text-xs mt-0.5">
+            <p className="text-sm font-medium truncate text-sidebar-foreground">{user.name}</p>
+            <span className="text-xs text-sidebar-foreground/50 mt-0.5">
               {({ admin_placego: "Admin PlaceGo", sdr: "SDR", corretor: "Corretor", admin_tenant: "Admin Empresa", corretor_tenant: "Corretor Empresa" } as Record<string,string>)[user.role] ?? user.role}
-            </Badge>
+            </span>
           </div>
           <form action="/auth/signout" method="post">
             <button
               type="submit"
-              className="text-muted-foreground hover:text-foreground"
+              className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
               title="Sair"
             >
               <LogOut className="h-4 w-4" />

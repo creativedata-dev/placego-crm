@@ -28,7 +28,7 @@ export default async function AppLayout({
       />
       <main className="flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
         {/* Header fixo no mobile */}
-        <header className="fixed top-0 left-0 right-0 z-40 border-b px-3 py-2.5 flex items-center gap-3 bg-zinc-900 sm:static sm:bg-background sm:px-4 sm:py-3">
+        <header className="fixed top-0 left-0 right-0 z-40 border-b px-3 py-2.5 flex items-center gap-3 bg-zinc-900 sm:static sm:bg-background sm:border-b sm:px-4 sm:py-3">
           <SidebarTrigger className="text-white/80 hover:text-white sm:text-foreground shrink-0" />
           <PageTitle />
           {/* Avatar + logout — só mobile */}
