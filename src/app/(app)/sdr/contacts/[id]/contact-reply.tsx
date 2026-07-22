@@ -161,10 +161,27 @@ export function ContactReply({
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSend();
   }
 
+  // Cor de destaque por canal ativo
+  const CHANNEL_ACCENT: Record<string, string> = {
+    whatsapp:     "border-green-400 ring-1 ring-green-200 dark:ring-green-900",
+    email:        "border-blue-400  ring-1 ring-blue-200  dark:ring-blue-900",
+    instagram_dm: "border-pink-400  ring-1 ring-pink-200  dark:ring-pink-900",
+    facebook_dm:  "border-blue-500  ring-1 ring-blue-200  dark:ring-blue-900",
+  };
+
+  const CHANNEL_TAB_ACTIVE: Record<string, string> = {
+    whatsapp:     "border-green-500 text-green-700 dark:text-green-400",
+    email:        "border-blue-500  text-blue-700  dark:text-blue-400",
+    instagram_dm: "border-pink-500  text-pink-700  dark:text-pink-400",
+    facebook_dm:  "border-blue-600  text-blue-800  dark:text-blue-300",
+  };
+
+  const accent = CHANNEL_ACCENT[channel] ?? "border-border ring-0";
+
   return (
-    <div className="border rounded-xl overflow-hidden bg-background">
+    <div className={`border-2 rounded-xl overflow-hidden bg-card shadow-md transition-all ${accent}`}>
       {/* Seletor de canal */}
-      <div className="flex border-b bg-muted/30">
+      <div className="flex border-b bg-muted/20">
         {CHANNELS.map((ch) => {
           const available = ch.value === "whatsapp" ? canSendWhatsApp
             : ch.value === "email" ? canSendEmail : false;
@@ -173,16 +190,16 @@ export function ContactReply({
               key={ch.value}
               onClick={() => available && setChannel(ch.value)}
               disabled={!available}
-              className={`flex-1 py-2 text-xs font-medium transition-colors border-b-2 ${
+              className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
                 channel === ch.value
-                  ? "border-primary text-primary bg-background"
+                  ? `${CHANNEL_TAB_ACTIVE[ch.value] ?? "border-primary text-primary"} bg-card`
                   : available
-                  ? "border-transparent text-muted-foreground hover:text-foreground"
-                  : "border-transparent text-muted-foreground/40 cursor-not-allowed"
+                  ? "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  : "border-transparent text-muted-foreground/30 cursor-not-allowed"
               }`}
             >
               {ch.label}
-              {!available && <span className="ml-1 text-[10px]">(sem dados)</span>}
+              {!available && <span className="ml-1 text-[10px] font-normal">(sem dados)</span>}
             </button>
           );
         })}
@@ -229,11 +246,11 @@ export function ContactReply({
                 ? channel === "whatsapp"
                   ? !contactPhone ? "Sem telefone cadastrado" : "Empresa sem WhatsApp configurado"
                   : "Sem email cadastrado"
-                : attachedFile ? "Legenda (opcional)..." : "Digite a mensagem... (Ctrl+Enter para enviar)"
+                : attachedFile ? "Legenda (opcional)..." : "Digite a mensagem… (Ctrl+Enter para enviar)"
             }
             disabled={!canSend || isPending || isRecording}
             rows={3}
-            className="w-full text-sm outline-none resize-none bg-transparent placeholder:text-muted-foreground/50 disabled:opacity-50"
+            className="w-full text-sm outline-none resize-none bg-transparent placeholder:text-muted-foreground/40 disabled:opacity-40 font-medium"
           />
         )}
 
