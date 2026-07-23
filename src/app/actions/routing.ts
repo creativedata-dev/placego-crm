@@ -7,7 +7,7 @@ import { eq, inArray, and, notInArray } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { sendLeadAssignedEmail } from "@/lib/email";
-import { notifyBrokerNewLead } from "@/lib/evolution";
+import { wpNotifyBrokerNewLead } from "@/lib/whatsapp";
 
 export async function assignLeadToBrokers(
   leadId: string,
@@ -69,11 +69,22 @@ export async function assignLeadToBrokers(
     .from(users)
     .where(inArray(users.id, brokerIds));
 
-  // Busca instância Evolution do tenant (se o contato tem tenant)
-  let evolutionInstance: string | null = null;
+  // Busca configuração WhatsApp do tenant
+  let wpConfig: import("@/lib/whatsapp").TenantWhatsAppConfig = { provider: "evolution" };
   if (contact?.tenantId) {
-    const [tenant] = await db.select({ slug: tenants.slug }).from(tenants).where(eq(tenants.id, contact.tenantId)).limit(1);
-    if (tenant) evolutionInstance = `placego-${tenant.slug}`;
+    const [tenant] = await db
+      .select({ slug: tenants.slug, whatsappProvider: tenants.whatsappProvider, metaPhoneNumberId: tenants.metaPhoneNumberId, metaAccessToken: tenants.metaAccessToken })
+      .from(tenants)
+      .where(eq(tenants.id, contact.tenantId))
+      .limit(1);
+    if (tenant) {
+      wpConfig = {
+        provider: (tenant.whatsappProvider ?? "evolution") as "evolution" | "meta_cloud",
+        evolutionInstance: `placego-${tenant.slug}`,
+        metaPhoneNumberId: tenant.metaPhoneNumberId,
+        metaAccessToken: tenant.metaAccessToken,
+      };
+    }
   }
 
   // Envia email + WhatsApp para cada corretor com dados do contato
@@ -89,10 +100,10 @@ export async function assignLeadToBrokers(
       })
     ),
     ...brokers
-      .filter((b) => b.phone && evolutionInstance)
+      .filter((b) => b.phone)
       .map((broker) =>
-        notifyBrokerNewLead(
-          evolutionInstance!,
+        wpNotifyBrokerNewLead(
+          wpConfig,
           broker.phone!,
           broker.name,
           contact?.name ?? "Novo lead",

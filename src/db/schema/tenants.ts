@@ -13,6 +13,11 @@ export const tenants = pgTable("tenants", {
   type: tenantTypeEnum("type").notNull(),
   slug: text("slug").notNull().unique(),
   webhookToken: text("webhook_token").unique(),
+  // WhatsApp provider: 'evolution' (padrão) | 'meta_cloud'
+  whatsappProvider: text("whatsapp_provider").notNull().default("evolution"),
+  metaPhoneNumberId: text("meta_phone_number_id"),
+  metaAccessToken: text("meta_access_token"),
+  metaWabaId: text("meta_waba_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
