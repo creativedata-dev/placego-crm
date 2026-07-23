@@ -3,7 +3,22 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, CheckCircle, AlertCircle, Info } from "lucide-react";
 
-const steps = [
+interface StepItem {
+  text: string;
+  link?: string;
+  linkLabel?: string;
+  tip?: string;
+  warning?: string;
+}
+
+interface Step {
+  number: string;
+  title: string;
+  time: string;
+  items: StepItem[];
+}
+
+const steps: Step[] = [
   {
     number: "01",
     title: "Criar conta no Meta Business Manager",
