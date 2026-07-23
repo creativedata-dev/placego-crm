@@ -72,6 +72,8 @@ export default async function ContatosPage() {
     name: r.lead.name,
     phone: r.lead.phone,
     email: r.lead.email,
+    city: r.lead.city,
+    state: r.lead.state,
     origin: r.lead.origin,
     stage: r.lead.stage,
     qualityScore: r.lead.qualityScore,

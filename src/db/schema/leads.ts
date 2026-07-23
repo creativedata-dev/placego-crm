@@ -56,6 +56,8 @@ export const leads = pgTable("leads", {
   status: leadStatusEnum("status").notNull().default("new"),
   qualityScore: integer("quality_score").default(0),
   sdrId: uuid("sdr_id").references(() => users.id),
+  city: text("city"),
+  state: text("state"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   qualifiedAt: timestamp("qualified_at"),

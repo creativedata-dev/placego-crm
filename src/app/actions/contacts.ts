@@ -16,6 +16,8 @@ export async function createContact(formData: FormData) {
   const origin = (formData.get("origin") as string) || "manual";
   const notes = (formData.get("notes") as string) || null;
   const tenantId = (formData.get("tenantId") as string) || null;
+  const city = (formData.get("city") as string) || null;
+  const state = ((formData.get("state") as string) || null)?.toUpperCase() || null;
 
   // Score básico para contatos manuais
   let score = 0;
@@ -34,6 +36,8 @@ export async function createContact(formData: FormData) {
     qualityScore: score,
     notes,
     tenantId,
+    city,
+    state,
   }).returning();
 
   // Round-robin: atribuir ao próximo SDR da mesma empresa

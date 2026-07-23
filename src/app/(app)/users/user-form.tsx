@@ -7,7 +7,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const ROLES = [
+const ROLES_ALL = [
   { value: "admin_placego", label: "Admin PlaceGo", desc: "Acesso total ao sistema" },
   { value: "sdr", label: "SDR", desc: "Fila de contatos e qualificação" },
   { value: "corretor", label: "Corretor", desc: "Pipeline de vendas (interno PlaceGo)" },
@@ -15,9 +15,15 @@ const ROLES = [
   { value: "corretor_tenant", label: "Corretor Empresa", desc: "Pipeline de vendas (empresa parceira)" },
 ];
 
+const ROLES_TENANT = [
+  { value: "admin_tenant", label: "Admin Empresa", desc: "Acesso ao painel e gestão de usuários da empresa" },
+  { value: "corretor_tenant", label: "Corretor Empresa", desc: "Pipeline de vendas" },
+];
+
 interface Props {
   action: (formData: FormData) => Promise<void>;
   tenants: { id: string; name: string }[];
+  isAdminTenant?: boolean;
   defaultValues?: {
     name: string;
     email: string;
@@ -28,17 +34,20 @@ interface Props {
   };
 }
 
-export function UserForm({ action, tenants, defaultValues }: Props) {
+export function UserForm({ action, tenants, defaultValues, isAdminTenant = false }: Props) {
   const router = useRouter();
+  const ROLES = isAdminTenant ? ROLES_TENANT : ROLES_ALL;
+  const defaultRole = isAdminTenant ? "corretor_tenant" : "sdr";
+
   const [name, setName] = useState(defaultValues?.name ?? "");
   const [email, setEmail] = useState(defaultValues?.email ?? "");
-  const [role, setRole] = useState(defaultValues?.role ?? "sdr");
+  const [role, setRole] = useState(defaultValues?.role ?? defaultRole);
   const [tenantId, setTenantId] = useState(defaultValues?.tenantId ?? "");
   const [phone, setPhone] = useState(defaultValues?.phone ?? "");
   const [loading, setLoading] = useState(false);
 
-  const needsTenant = role === "admin_tenant" || role === "corretor_tenant";
-  const canHaveTenant = needsTenant || role === "sdr" || role === "corretor";
+  const needsTenant = !isAdminTenant && (role === "admin_tenant" || role === "corretor_tenant");
+  const canHaveTenant = !isAdminTenant && (needsTenant || role === "sdr" || role === "corretor");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

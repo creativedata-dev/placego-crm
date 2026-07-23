@@ -17,13 +17,23 @@ function adminClient() {
 }
 
 export async function createUser(formData: FormData) {
-  await requireRole(["admin_placego"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
 
   const email = formData.get("email") as string;
   const name = formData.get("name") as string;
-  const role = formData.get("role") as string;
-  const tenantId = (formData.get("tenantId") as string) || null;
   const phone = (formData.get("phone") as string) || null;
+
+  // admin_tenant só pode criar roles de tenant e sempre no seu próprio tenant
+  let role: string;
+  let tenantId: string | null;
+  if (currentUser.role === "admin_tenant") {
+    role = (formData.get("role") as string) || "corretor_tenant";
+    if (!["admin_tenant", "corretor_tenant"].includes(role)) role = "corretor_tenant";
+    tenantId = currentUser.tenantId ?? null;
+  } else {
+    role = formData.get("role") as string;
+    tenantId = (formData.get("tenantId") as string) || null;
+  }
 
   const supabase = adminClient();
 
@@ -71,13 +81,29 @@ export async function createUser(formData: FormData) {
 }
 
 export async function updateUser(id: string, formData: FormData) {
-  await requireRole(["admin_placego"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
+
+  // admin_tenant só pode editar usuários do seu tenant
+  if (currentUser.role === "admin_tenant") {
+    const [target] = await db.select({ tenantId: users.tenantId, role: users.role }).from(users).where(eq(users.id, id)).limit(1);
+    if (!target || target.tenantId !== currentUser.tenantId) throw new Error("Sem permissão");
+    if (!["admin_tenant", "corretor_tenant"].includes(target.role)) throw new Error("Sem permissão");
+  }
 
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
-  const role = formData.get("role") as string;
-  const tenantId = (formData.get("tenantId") as string) || null;
   const phone = (formData.get("phone") as string) || null;
+
+  let role: string;
+  let tenantId: string | null;
+  if (currentUser.role === "admin_tenant") {
+    role = (formData.get("role") as string) || "corretor_tenant";
+    if (!["admin_tenant", "corretor_tenant"].includes(role)) role = "corretor_tenant";
+    tenantId = currentUser.tenantId ?? null;
+  } else {
+    role = formData.get("role") as string;
+    tenantId = (formData.get("tenantId") as string) || null;
+  }
 
   await db.update(users).set({
     name, email,
@@ -92,13 +118,13 @@ export async function updateUser(id: string, formData: FormData) {
 }
 
 export async function toggleUserActive(id: string, isActive: boolean) {
-  await requireRole(["admin_placego"]);
+  await requireRole(["admin_placego", "admin_tenant"]);
   await db.update(users).set({ isActive, updatedAt: new Date() }).where(eq(users.id, id));
   revalidatePath("/users");
 }
 
 export async function sendPasswordReset(id: string): Promise<{ ok: boolean; error?: string; link?: string }> {
-  await requireRole(["admin_placego"]);
+  await requireRole(["admin_placego", "admin_tenant"]);
 
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, id)).limit(1);
   if (!user) return { ok: false, error: "Usuário não encontrado" };

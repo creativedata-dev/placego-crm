@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { users, tenants } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,12 +30,24 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default async function UsersPage() {
-  await requireRole(["admin_placego"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
+  const isAdminPlacego = currentUser.role === "admin_placego";
+
+  // admin_tenant vê apenas usuários do seu tenant (roles de tenant)
+  const whereClause = isAdminPlacego
+    ? undefined
+    : currentUser.tenantId
+    ? and(
+        inArray(users.role, ["admin_tenant", "corretor_tenant"]),
+        eq(users.tenantId, currentUser.tenantId)
+      )
+    : undefined;
 
   const userList = await db
     .select({ user: users, tenantName: tenants.name })
     .from(users)
     .leftJoin(tenants, eq(users.tenantId, tenants.id))
+    .where(whereClause)
     .orderBy(users.createdAt);
 
   const grouped = {
@@ -46,13 +58,17 @@ export default async function UsersPage() {
     corretor_tenant: userList.filter((u) => u.user.role === "corretor_tenant"),
   };
 
+  const visibleRoles = isAdminPlacego
+    ? Object.entries(ROLE_LABELS)
+    : [["admin_tenant", "Admin Empresa"], ["corretor_tenant", "Corretor Empresa"]] as [string, string][];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Usuários</h1>
           <p className="text-muted-foreground text-sm">
-            Gestão de acesso ao sistema — {userList.length} usuários cadastrados
+            {isAdminPlacego ? "Gestão de acesso ao sistema" : "Usuários da sua empresa"} — {userList.length} usuários
           </p>
         </div>
         <Button nativeButton={false} render={<Link href="/users/new" />}>
@@ -62,8 +78,8 @@ export default async function UsersPage() {
       </div>
 
       {/* Resumo por role */}
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-        {Object.entries(ROLE_LABELS).map(([role, label]) => (
+      <div className={`grid gap-2 ${isAdminPlacego ? "grid-cols-3 sm:grid-cols-5" : "grid-cols-2"}`}>
+        {visibleRoles.map(([role, label]) => (
           <div key={role} className="border rounded-xl p-3 text-center">
             <p className="text-2xl font-bold">{grouped[role as keyof typeof grouped]?.length ?? 0}</p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>

@@ -70,6 +70,8 @@ type Contact = {
   name: string;
   phone: string | null;
   email: string | null;
+  city: string | null;
+  state: string | null;
   origin: string;
   stage: string;
   qualityScore: number | null;
@@ -211,6 +213,7 @@ export function ContactsTable({ contacts, tenants, sdrs }: Props) {
               <th className="px-3 py-2 text-left font-medium">Nome</th>
               <th className="px-3 py-2 text-left font-medium">Telefone</th>
               <th className="px-3 py-2 text-left font-medium">Email</th>
+              <th className="px-3 py-2 text-left font-medium">Cidade/UF</th>
               <th className="px-3 py-2 text-left font-medium">Empresa</th>
               <th className="px-3 py-2 text-left font-medium">Origem</th>
               <th className="px-3 py-2 text-left font-medium">SDR</th>
@@ -226,7 +229,7 @@ export function ContactsTable({ contacts, tenants, sdrs }: Props) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={13} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={14} className="px-3 py-8 text-center text-muted-foreground">
                   Nenhum contato encontrado
                 </td>
               </tr>
@@ -236,6 +239,9 @@ export function ContactsTable({ contacts, tenants, sdrs }: Props) {
                   <td className="px-3 py-2 font-medium">{c.name}</td>
                   <td className="px-3 py-2 text-muted-foreground">{c.phone ?? "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground">{c.email ?? "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                    {c.city && c.state ? `${c.city}/${c.state}` : c.city ?? c.state ?? "—"}
+                  </td>
                   <td className="px-3 py-2">{c.tenantName ?? "—"}</td>
                   <td className="px-3 py-2">{ORIGIN_LABELS[c.origin] ?? c.origin}</td>
                   <td className="px-3 py-2">{c.sdrName ?? "—"}</td>

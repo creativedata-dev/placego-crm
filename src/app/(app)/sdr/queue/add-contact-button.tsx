@@ -99,6 +99,17 @@ export function AddContactButton({ tenants }: Props) {
               </div>
             )}
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Input id="city" name="city" placeholder="São Paulo" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">UF</Label>
+                <Input id="state" name="state" maxLength={2} placeholder="SP" className="uppercase" />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea
