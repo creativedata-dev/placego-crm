@@ -77,21 +77,25 @@ export default async function DashboardPage({
   `);
 
   // Série temporal: contatos por dia no range selecionado
+  // Converter para ISO timestamp para evitar bug do postgres.js com ::date na Vercel
+  const fromISO = fromDate + "T00:00:00.000Z";
+  const toISO = toDate + "T23:59:59.999Z";
+
   const contactsPerDay = await db.execute(sql`
     SELECT
-      DATE(created_at AT TIME ZONE 'America/Sao_Paulo') AS day,
+      TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS day,
       COUNT(*) AS total
     FROM leads
-    WHERE created_at >= ${fromDate}::date
-      AND created_at < (${toDate}::date + INTERVAL '1 day')
+    WHERE created_at >= ${fromISO}
+      AND created_at <= ${toISO}
     GROUP BY day
     ORDER BY day ASC
   `);
 
-  // Preencher dias sem dados com zero
+  // Preencher dias sem dados com zero (row.day é string "YYYY-MM-DD" via TO_CHAR)
   const dayMap = new Map<string, number>();
   for (const row of contactsPerDay as any[]) {
-    dayMap.set(row.day.toISOString().slice(0, 10), Number(row.total));
+    dayMap.set(String(row.day), Number(row.total));
   }
   const chartData: { date: string; total: number }[] = [];
   const cursor = new Date(fromDate + "T00:00:00");
