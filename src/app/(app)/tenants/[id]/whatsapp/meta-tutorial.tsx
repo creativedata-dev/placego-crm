@@ -47,22 +47,34 @@ const steps: Step[] = [
     time: "10 min",
     items: [
       {
-        text: "Acesse developers.facebook.com → clique em \"Meus apps\" → \"Criar app\"",
+        text: "Acesse developers.facebook.com com a mesma conta Facebook do administrador do Business Manager",
         link: "https://developers.facebook.com/apps",
         linkLabel: "developers.facebook.com/apps",
+        tip: "Você precisa estar logado com a conta Facebook pessoal do administrador — não uma conta de empresa.",
       },
       {
-        text: 'Escolha o tipo: "Business" → clique em Próximo',
+        text: 'No canto superior direito, clique em "Meus apps" → "Criar app"',
       },
       {
-        text: "Preencha o nome do app (ex: PlaceGo CRM) e selecione a conta do Business Manager criada no passo 01",
+        text: 'Na pergunta "Para que serve o seu app?", selecione "Outro" → clique em Próximo',
+        tip: 'A opção "Business" foi renomeada para fluxo diferente em versões recentes do portal. Selecione "Outro" para ter acesso ao produto WhatsApp Business.',
       },
       {
-        text: 'Na tela de produtos, localize "WhatsApp" e clique em "Configurar"',
+        text: 'Em "Selecionar um tipo de app", escolha "Business" → clique em Próximo',
       },
       {
-        text: 'Selecione sua conta do Business Manager quando solicitado — clique em "Continuar"',
-        tip: "Isso vincula o app à sua empresa e libera a API.",
+        text: 'Preencha o nome do app (ex: "PlaceGo CRM" ou o nome da imobiliária) e informe um email de contato',
+      },
+      {
+        text: 'Em "Conta Business", selecione o Business Manager criado no passo 01 — clique em "Criar app"',
+        warning: "Se a conta Business não aparecer na lista, significa que o Business Manager ainda não foi verificado ou o usuário não tem acesso de administrador.",
+      },
+      {
+        text: 'Na tela de produtos do app, role até encontrar "WhatsApp" e clique em "Configurar"',
+      },
+      {
+        text: 'Confirme novamente o Business Manager quando solicitado → clique em "Continuar"',
+        tip: "Isso vincula o app à conta WABA (WhatsApp Business Account) da empresa e libera o acesso à Cloud API.",
       },
     ],
   },
@@ -321,6 +333,14 @@ export function MetaTutorial() {
                 {
                   q: "O que acontece se o token for revogado?",
                   a: "As notificações param de ser enviadas silenciosamente (o CRM registra o erro nos logs). Basta gerar um novo token e atualizar nesta página.",
+                },
+                {
+                  q: "Precisa de conta de anúncios para criar o app?",
+                  a: "Não. A conta de anúncios (Facebook Ads) serve apenas para campanhas pagas. A Cloud API do WhatsApp é gerenciada pelo Business Manager — são dois recursos independentes. A imobiliária pode não ter nenhum anúncio ativo e ainda assim usar a API.",
+                },
+                {
+                  q: "Com qual conta Facebook devo acessar o developers.facebook.com?",
+                  a: "Com a conta pessoal do Facebook do administrador do Business Manager. Não existe \"conta Facebook de empresa\" — o portal de desenvolvedores usa sua conta pessoal, mas tudo que você criar fica vinculado ao Business Manager da empresa.",
                 },
               ].map((item, i) => (
                 <div key={i} className="space-y-1">
