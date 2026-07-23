@@ -17,16 +17,21 @@ const PROPERTY_TYPES = [
 ];
 
 export default async function EditBrokerPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole(["admin_placego", "admin_tenant"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
   const { id } = await params;
 
   const [[broker], [prefs], tenantList] = await Promise.all([
     db.select().from(users).where(eq(users.id, id)).limit(1),
     db.select().from(brokerPreferences).where(eq(brokerPreferences.brokerId, id)).limit(1),
-    db.select({ id: tenants.id, name: tenants.name }).from(tenants),
+    currentUser.role === "admin_placego"
+      ? db.select({ id: tenants.id, name: tenants.name }).from(tenants)
+      : Promise.resolve([]),
   ]);
 
   if (!broker) notFound();
+
+  // admin_tenant só pode editar corretores do seu próprio tenant
+  if (currentUser.role === "admin_tenant" && broker.tenantId !== currentUser.tenantId) notFound();
 
   const action = updateBrokerPreferences.bind(null, id);
 

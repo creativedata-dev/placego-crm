@@ -14,12 +14,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus } from "lucide-react";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 
 export default async function BrokersPage() {
   const user = await requireRole(["admin_placego", "admin_tenant", "sdr"]);
 
   const isAdmin = user.role === "admin_placego" || user.role === "admin_tenant";
+
+  // admin_tenant e sdr só veem corretores do seu próprio tenant
+  const tenantFilter = (user.role === "admin_tenant" || user.role === "sdr") && user.tenantId
+    ? eq(users.tenantId, user.tenantId)
+    : undefined;
+
+  const whereClause = tenantFilter
+    ? and(inArray(users.role, ["corretor", "corretor_tenant"]), tenantFilter)
+    : inArray(users.role, ["corretor", "corretor_tenant"]);
 
   const brokerList = await db
     .select({
@@ -31,7 +40,7 @@ export default async function BrokersPage() {
     .from(users)
     .leftJoin(tenants, eq(users.tenantId, tenants.id))
     .leftJoin(brokerPreferences, eq(users.id, brokerPreferences.brokerId))
-    .where(inArray(users.role, ["corretor", "corretor_tenant"]));
+    .where(whereClause);
 
   return (
     <div className="space-y-6">

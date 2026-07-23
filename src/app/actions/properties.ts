@@ -8,10 +8,15 @@ import { requireRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export async function createProperty(formData: FormData) {
-  await requireRole(["admin_placego", "admin_tenant"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
+
+  // admin_tenant sempre usa seu próprio tenant
+  const tenantId = currentUser.role === "admin_tenant"
+    ? currentUser.tenantId!
+    : formData.get("tenantId") as string;
 
   await db.insert(properties).values({
-    tenantId: formData.get("tenantId") as string,
+    tenantId,
     type: formData.get("type") as any,
     address: formData.get("address") as string,
     neighborhood: formData.get("neighborhood") as string,
@@ -29,7 +34,13 @@ export async function createProperty(formData: FormData) {
 }
 
 export async function updateProperty(id: string, formData: FormData) {
-  await requireRole(["admin_placego", "admin_tenant"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
+
+  // admin_tenant só pode editar imóveis do seu tenant
+  if (currentUser.role === "admin_tenant") {
+    const [prop] = await db.select({ tenantId: properties.tenantId }).from(properties).where(eq(properties.id, id)).limit(1);
+    if (!prop || prop.tenantId !== currentUser.tenantId) throw new Error("Sem permissão");
+  }
 
   await db.update(properties).set({
     type: formData.get("type") as any,
@@ -51,16 +62,26 @@ export async function updateProperty(id: string, formData: FormData) {
 }
 
 export async function deleteProperty(id: string) {
-  await requireRole(["admin_placego", "admin_tenant"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
+
+  if (currentUser.role === "admin_tenant") {
+    const [prop] = await db.select({ tenantId: properties.tenantId }).from(properties).where(eq(properties.id, id)).limit(1);
+    if (!prop || prop.tenantId !== currentUser.tenantId) throw new Error("Sem permissão");
+  }
+
   await db.delete(properties).where(eq(properties.id, id));
   revalidatePath("/properties");
 }
 
 export async function createDevelopment(formData: FormData) {
-  await requireRole(["admin_placego", "admin_tenant"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
+
+  const tenantId = currentUser.role === "admin_tenant"
+    ? currentUser.tenantId!
+    : formData.get("tenantId") as string;
 
   await db.insert(developments).values({
-    tenantId: formData.get("tenantId") as string,
+    tenantId,
     name: formData.get("name") as string,
     address: formData.get("address") as string,
     neighborhood: formData.get("neighborhood") as string,
