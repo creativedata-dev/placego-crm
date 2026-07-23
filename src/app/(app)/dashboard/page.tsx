@@ -8,18 +8,33 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { FunnelChart } from "./funnel-chart";
+import { ContactsChart } from "./contacts-chart";
 import { redirect } from "next/navigation";
 import { Users, Star, Trophy, TrendingUp, XCircle } from "lucide-react";
 
-const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+function toISODate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
   const user = await requireAuth();
 
   if (user.role === "sdr") redirect("/sdr/dashboard");
   if (user.role === "corretor" || user.role === "corretor_tenant") redirect("/pipeline");
   if (user.role === "admin_tenant") redirect("/tenant/dashboard");
+
+  const params = await searchParams;
+  const today = toISODate(new Date());
+  const defaultFrom = toISODate(new Date(Date.now() - 30 * 86400000));
+  const fromDate = params.from ?? defaultFrom;
+  const toDate = params.to ?? today;
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
 
   const [
     [{ total }],
@@ -61,6 +76,33 @@ export default async function DashboardPage() {
     LIMIT 10
   `);
 
+  // Série temporal: contatos por dia no range selecionado
+  const contactsPerDay = await db.execute(sql`
+    SELECT
+      DATE(created_at AT TIME ZONE 'America/Sao_Paulo') AS day,
+      COUNT(*) AS total
+    FROM leads
+    WHERE created_at >= ${fromDate}::date
+      AND created_at < (${toDate}::date + INTERVAL '1 day')
+    GROUP BY day
+    ORDER BY day ASC
+  `);
+
+  // Preencher dias sem dados com zero
+  const dayMap = new Map<string, number>();
+  for (const row of contactsPerDay as any[]) {
+    dayMap.set(row.day.toISOString().slice(0, 10), Number(row.total));
+  }
+  const chartData: { date: string; total: number }[] = [];
+  const cursor = new Date(fromDate + "T00:00:00");
+  const end = new Date(toDate + "T00:00:00");
+  while (cursor <= end) {
+    const key = toISODate(cursor);
+    const label = cursor.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    chartData.push({ date: label, total: dayMap.get(key) ?? 0 });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
   const brokerStats = await db.execute(sql`
     SELECT
       u.name AS broker_name,
@@ -87,7 +129,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm">Últimos 30 dias</p>
+        <p className="text-muted-foreground text-sm">Últimos 30 dias · KPIs fixos</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -180,6 +222,8 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ContactsChart data={chartData} from={fromDate} to={toDate} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
