@@ -16,8 +16,13 @@ export default async function CompanyChannelsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole(["admin_placego"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
   const { id } = await params;
+
+  // admin_tenant só pode ver a própria empresa
+  if (currentUser.role === "admin_tenant" && currentUser.tenantId !== id) {
+    notFound();
+  }
 
   const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
   if (!tenant) notFound();

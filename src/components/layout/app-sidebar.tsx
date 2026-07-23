@@ -14,6 +14,7 @@ import {
   Share2,
   Kanban,
   ContactRound,
+  Plug,
   LogOut,
 } from "lucide-react";
 import {
@@ -45,6 +46,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Share2,
   Kanban,
   ContactRound,
+  Plug,
 };
 
 interface AppSidebarProps {

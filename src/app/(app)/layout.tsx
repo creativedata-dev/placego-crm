@@ -14,7 +14,11 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAuth();
-  const navItems = NAV_BY_ROLE[user.role as UserRole] ?? [];
+  const rawNavItems = NAV_BY_ROLE[user.role as UserRole] ?? [];
+  const navItems = rawNavItems.map((item) => ({
+    ...item,
+    href: user.tenantId ? item.href.replace("[tenantId]", user.tenantId) : item.href,
+  }));
 
   // Buscar nome da empresa para admin_tenant
   let tenantName: string | null = null;

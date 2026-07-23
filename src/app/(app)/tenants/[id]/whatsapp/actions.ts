@@ -18,7 +18,10 @@ export async function saveMetaCloudConfig(
   tenantId: string,
   payload: MetaCloudPayload
 ): Promise<{ ok: boolean; message: string }> {
-  await requireRole(["admin_placego"]);
+  const currentUser = await requireRole(["admin_placego", "admin_tenant"]);
+  if (currentUser.role === "admin_tenant" && currentUser.tenantId !== tenantId) {
+    return { ok: false, message: "Sem permissão para alterar esta empresa." };
+  }
 
   if (payload.provider === "meta_cloud") {
     if (!payload.metaPhoneNumberId || !payload.metaAccessToken) {
