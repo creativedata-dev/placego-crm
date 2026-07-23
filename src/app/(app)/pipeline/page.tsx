@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { inArray } from "drizzle-orm";
+import { inArray, and, eq } from "drizzle-orm";
 import { PipelineBrokerFilter } from "./pipeline-broker-filter";
 import { PipelineData } from "./pipeline-data";
 import Loading from "./loading";
@@ -21,16 +21,21 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ broker?: string }>;
 }) {
-  const user = await requireRole(["corretor", "corretor_tenant", "admin_placego", "sdr"]);
+  const user = await requireRole(["corretor", "corretor_tenant", "admin_placego", "sdr", "admin_tenant"]);
   const { broker: brokerFilter } = await searchParams;
 
-  const isAdmin = user.role === "admin_placego" || user.role === "sdr";
+  const isAdmin = user.role === "admin_placego" || user.role === "sdr" || user.role === "admin_tenant";
 
+  // admin_tenant vê apenas corretores do seu tenant
   const brokerList = isAdmin
     ? await db
         .select({ id: users.id, name: users.name })
         .from(users)
-        .where(inArray(users.role, ["corretor", "corretor_tenant"]))
+        .where(
+          user.role === "admin_tenant" && user.tenantId
+            ? and(inArray(users.role, ["corretor", "corretor_tenant"]), eq(users.tenantId, user.tenantId))
+            : inArray(users.role, ["corretor", "corretor_tenant"])
+        )
         .orderBy(users.name)
     : [];
 
@@ -40,7 +45,7 @@ export default async function PipelinePage({
         <div>
           <h1 className="text-2xl font-bold">Pipeline</h1>
           <p className="text-muted-foreground text-sm">
-            {isAdmin ? "Visão global de todos os corretores" : "Seus leads em atendimento"}
+            {isAdmin ? "Visão dos corretores" : "Seus leads em atendimento"}
           </p>
         </div>
         {isAdmin && <PipelineBrokerFilter brokers={brokerList} selected={brokerFilter ?? ""} />}
@@ -50,6 +55,7 @@ export default async function PipelinePage({
           isAdmin={isAdmin}
           userId={user.id}
           brokerFilter={brokerFilter}
+          tenantId={user.role === "admin_tenant" ? (user.tenantId ?? undefined) : undefined}
         />
       </Suspense>
     </div>

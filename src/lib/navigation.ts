@@ -29,6 +29,10 @@ export const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   ],
   admin_tenant: [
     { title: "Dashboard", href: "/tenant/dashboard", icon: "LayoutDashboard" },
+    { title: "Contatos", href: "/contatos", icon: "ContactRound" },
+    { title: "Corretores", href: "/brokers", icon: "UserCheck" },
+    { title: "Imóveis", href: "/properties", icon: "Home" },
+    { title: "Pipeline", href: "/pipeline", icon: "Kanban" },
   ],
   corretor_tenant: [
     { title: "Pipeline", href: "/pipeline", icon: "Kanban" },

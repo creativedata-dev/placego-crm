@@ -5,10 +5,10 @@ import { requireRole } from "@/lib/auth";
 import { ContactsTable } from "./contacts-table";
 
 export default async function ContatosPage() {
-  const currentUser = await requireRole(["admin_placego", "sdr"]);
+  const currentUser = await requireRole(["admin_placego", "sdr", "admin_tenant"]);
 
-  // SDR só vê contatos do seu próprio tenant
-  const tenantFilter = currentUser.role === "sdr" && currentUser.tenantId
+  // SDR e admin_tenant só veem contatos do seu próprio tenant
+  const tenantFilter = (currentUser.role === "sdr" || currentUser.role === "admin_tenant") && currentUser.tenantId
     ? eq(leads.tenantId, currentUser.tenantId)
     : undefined;
 

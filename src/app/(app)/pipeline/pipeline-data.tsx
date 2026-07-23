@@ -8,14 +8,22 @@ interface Props {
   isAdmin: boolean;
   userId: string;
   brokerFilter?: string;
+  tenantId?: string; // quando definido, filtra leads por tenant (admin_tenant)
 }
 
-export async function PipelineData({ isAdmin, userId, brokerFilter }: Props) {
-  const whereClause = isAdmin
+export async function PipelineData({ isAdmin, userId, brokerFilter, tenantId }: Props) {
+  // admin_tenant vê todos os corretores do seu tenant, sem filtro por broker específico por padrão
+  const assignmentFilter = isAdmin
     ? brokerFilter
       ? eq(leadAssignments.brokerId, brokerFilter)
       : undefined
     : eq(leadAssignments.brokerId, userId);
+
+  const whereClause = tenantId
+    ? assignmentFilter
+      ? and(assignmentFilter, eq(leads.tenantId, tenantId))
+      : eq(leads.tenantId, tenantId)
+    : assignmentFilter;
 
   const rows = await db
     .select({
@@ -28,7 +36,7 @@ export async function PipelineData({ isAdmin, userId, brokerFilter }: Props) {
     .innerJoin(leads, eq(leadAssignments.leadId, leads.id))
     .innerJoin(users, eq(leadAssignments.brokerId, users.id))
     .leftJoin(tenants, eq(leads.tenantId, tenants.id))
-    .where(whereClause)
+    .where(whereClause ?? undefined)
     .orderBy(leadAssignments.assignedAt);
 
   const leadIds = rows.map((r) => r.lead.id);
