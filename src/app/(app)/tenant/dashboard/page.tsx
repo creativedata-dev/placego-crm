@@ -1,13 +1,15 @@
 import { db } from "@/db";
-import { leads, leadAssignments, properties, users, tenants } from "@/db/schema";
+import { leads, leadAssignments, users, tenants, sdrAssignments } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { eq, inArray } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Users, TrendingUp, Handshake, Trophy } from "lucide-react";
+import { FunnelChart } from "../../dashboard/funnel-chart";
+import { ContactsChart } from "../../dashboard/contacts-chart";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Users, TrendingUp, Handshake, Trophy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const ASSIGNMENT_LABELS: Record<string, string> = {
   new: "Novo", contacted: "Contatado", visiting: "Visita",
@@ -27,16 +29,30 @@ const ORIGIN_LABELS: Record<string, string> = {
   indicacao: "Indicação", portal: "Portal",
 };
 
-export default async function TenantDashboardPage() {
+function toISODate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+export default async function TenantDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
   const user = await requireRole(["admin_tenant", "admin_placego"]);
 
   const tenantId = user.tenantId;
   if (!tenantId) return <p className="text-muted-foreground">Tenant não configurado.</p>;
 
+  const params = await searchParams;
+  const today = toISODate(new Date());
+  const defaultFrom = toISODate(new Date(Date.now() - 30 * 86400000));
+  const fromDate = params.from ?? defaultFrom;
+  const toDate = params.to ?? today;
+
   const [tenantData] = await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
   const tenantName = tenantData?.name ?? "Empresa";
 
-  // Leads diretos pelo tenant_id (não apenas via imóvel)
+  // Todos os leads do tenant
   const tenantLeads = await db
     .select({
       lead: leads,
@@ -54,9 +70,55 @@ export default async function TenantDashboardPage() {
   const qualified = uniqueLeads.filter((l) => l.stage === "lead").length;
   const inProgress = tenantLeads.filter((r) => r.assignment && !["won", "lost"].includes(r.assignment.status)).length;
   const won = tenantLeads.filter((r) => r.assignment?.status === "won").length;
+  const lost = tenantLeads.filter((r) => r.assignment?.status === "lost").length;
   const convRate = qualified > 0 ? Math.round((won / qualified) * 100) : 0;
 
+  // Série temporal filtrada pelo range
+  const fromISO = fromDate + "T00:00:00.000Z";
+  const toISO = toDate + "T23:59:59.999Z";
+
+  const contactsPerDay = await db.execute(sql`
+    SELECT
+      TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS day,
+      COUNT(*) AS total
+    FROM leads
+    WHERE tenant_id = ${tenantId}
+      AND created_at >= ${fromISO}
+      AND created_at <= ${toISO}
+    GROUP BY day
+    ORDER BY day ASC
+  `);
+
+  const dayMap = new Map<string, number>();
+  for (const row of contactsPerDay as any[]) {
+    dayMap.set(String(row.day), Number(row.total));
+  }
+  const chartData: { date: string; total: number }[] = [];
+  const cursor = new Date(fromDate + "T00:00:00");
+  const end = new Date(toDate + "T00:00:00");
+  while (cursor <= end) {
+    const key = toISODate(cursor);
+    const label = cursor.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    chartData.push({ date: label, total: dayMap.get(key) ?? 0 });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Funil
+  const funnelData = [
+    { label: "Capturados", value: total, color: "#6366f1" },
+    { label: "Qualificados", value: qualified, color: "#22c55e" },
+    { label: "Em atendimento", value: Math.max(0, qualified - won - lost), color: "#f59e0b" },
+    { label: "Ganhos", value: won, color: "#10b981" },
+  ];
+
+  // Leads recentes (20 mais recentes)
   const recentLeads = uniqueLeads.slice(-20).reverse();
+
+  const fmtDateTime = (d: Date) =>
+    new Date(d).toLocaleString("pt-BR", {
+      day: "2-digit", month: "2-digit", year: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    });
 
   return (
     <div className="space-y-6">
@@ -65,7 +127,7 @@ export default async function TenantDashboardPage() {
         <p className="text-muted-foreground text-sm">Painel do Administrador</p>
       </div>
 
-      {/* KPI cards com gradientes — mesmo padrão do admin_placego */}
+      {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card className="border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-md">
           <CardHeader className="pb-1 pt-4 px-4">
@@ -133,6 +195,19 @@ export default async function TenantDashboardPage() {
         </Card>
       </div>
 
+      {/* Gráfico de linha — contatos por dia */}
+      <ContactsChart data={chartData} from={fromDate} to={toDate} />
+
+      {/* Funil */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Funil de leads</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FunnelChart data={funnelData} />
+        </CardContent>
+      </Card>
+
       {/* Leads recentes */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Leads recentes</h2>
@@ -151,8 +226,8 @@ export default async function TenantDashboardPage() {
                     <p className="font-medium text-sm truncate">{lead.name}</p>
                     <p className="text-xs text-muted-foreground">{lead.phone}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {new Date(lead.createdAt).toLocaleDateString("pt-BR")}
+                  <span className="text-xs text-muted-foreground shrink-0 text-right">
+                    {fmtDateTime(lead.createdAt)}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 items-center">
@@ -212,8 +287,8 @@ export default async function TenantDashboardPage() {
                         <span className="text-xs text-muted-foreground">Não distribuído</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(lead.createdAt).toLocaleDateString("pt-BR")}
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      {fmtDateTime(lead.createdAt)}
                     </TableCell>
                   </TableRow>
                 );
