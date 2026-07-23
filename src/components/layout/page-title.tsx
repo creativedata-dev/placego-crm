@@ -25,5 +25,5 @@ export function PageTitle() {
     .sort((a, b) => b[0].length - a[0].length)
     .find(([path]) => pathname === path || pathname.startsWith(path + "/"))?.[1] ?? "PlaceGo CRM";
 
-  return <span className="text-sm font-semibold text-white/90 truncate">{title}</span>;
+  return <span className="text-sm font-semibold text-white/90 sm:text-foreground truncate">{title}</span>;
 }

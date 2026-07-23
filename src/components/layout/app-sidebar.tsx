@@ -54,9 +54,10 @@ interface AppSidebarProps {
     role: string;
   };
   navItems: NavItem[];
+  tenantName?: string | null;
 }
 
-export function AppSidebar({ user, navItems }: AppSidebarProps) {
+export function AppSidebar({ user, navItems, tenantName }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
@@ -75,9 +76,16 @@ export function AppSidebar({ user, navItems }: AppSidebarProps) {
           <div className="h-7 w-7 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
             <span className="text-xs font-black text-white">PG</span>
           </div>
-          <span className="font-bold text-base tracking-tight text-sidebar-foreground">
-            PlaceGo CRM
-          </span>
+          <div className="min-w-0">
+            <span className="font-bold text-base tracking-tight text-sidebar-foreground block leading-tight">
+              PlaceGo CRM
+            </span>
+            {tenantName && (
+              <span className="text-[11px] text-sidebar-foreground/60 block truncate leading-tight">
+                {tenantName}
+              </span>
+            )}
+          </div>
         </div>
       </SidebarHeader>
 
@@ -116,7 +124,9 @@ export function AppSidebar({ user, navItems }: AppSidebarProps) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate text-sidebar-foreground">{user.name}</p>
             <span className="text-xs text-sidebar-foreground/50 mt-0.5">
-              {({ admin_placego: "Admin PlaceGo", sdr: "SDR", corretor: "Corretor", admin_tenant: "Admin Empresa", corretor_tenant: "Corretor Empresa" } as Record<string,string>)[user.role] ?? user.role}
+              {user.role === "admin_tenant" && tenantName
+                ? `Administrador · ${tenantName}`
+                : ({ admin_placego: "Admin PlaceGo", sdr: "SDR", corretor: "Corretor", admin_tenant: "Administrador", corretor_tenant: "Corretor Empresa" } as Record<string,string>)[user.role] ?? user.role}
             </span>
           </div>
           <form action="/auth/signout" method="post">

@@ -4,6 +4,9 @@ import { PageTitle } from "@/components/layout/page-title";
 import { requireAuth } from "@/lib/auth";
 import { NAV_BY_ROLE } from "@/lib/navigation";
 import type { UserRole } from "@/lib/auth";
+import { db } from "@/db";
+import { tenants } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function AppLayout({
   children,
@@ -12,6 +15,13 @@ export default async function AppLayout({
 }) {
   const user = await requireAuth();
   const navItems = NAV_BY_ROLE[user.role as UserRole] ?? [];
+
+  // Buscar nome da empresa para admin_tenant
+  let tenantName: string | null = null;
+  if (user.tenantId) {
+    const [t] = await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, user.tenantId)).limit(1);
+    tenantName = t?.name ?? null;
+  }
 
   const initials = user.name
     .split(" ")
@@ -25,6 +35,7 @@ export default async function AppLayout({
       <AppSidebar
         user={{ name: user.name, email: user.email, role: user.role }}
         navItems={navItems}
+        tenantName={tenantName}
       />
       <main className="flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
         {/* Header fixo no mobile */}
