@@ -1,11 +1,16 @@
 import { db } from "@/db";
 import { leads, sdrAssignments, users, tenants, tags, contactTags, leadAssignments } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { ContactsTable } from "./contacts-table";
 
 export default async function ContatosPage() {
-  await requireRole(["admin_placego", "sdr"]);
+  const currentUser = await requireRole(["admin_placego", "sdr"]);
+
+  // SDR só vê contatos do seu próprio tenant
+  const tenantFilter = currentUser.role === "sdr" && currentUser.tenantId
+    ? eq(leads.tenantId, currentUser.tenantId)
+    : undefined;
 
   const rows = await db
     .select({
@@ -19,6 +24,7 @@ export default async function ContatosPage() {
     .leftJoin(sdrAssignments, eq(sdrAssignments.contactId, leads.id))
     .leftJoin(users, eq(sdrAssignments.sdrId, users.id))
     .leftJoin(tenants, eq(leads.tenantId, tenants.id))
+    .where(tenantFilter)
     .orderBy(desc(leads.createdAt));
 
   // Deduplicar por lead.id — pegar o assignment mais recente
@@ -79,10 +85,17 @@ export default async function ContatosPage() {
     tags: tagsByLead.get(r.lead.id) ?? [],
   }));
 
-  // Listas para filtros
-  const tenantList = await db.select({ id: tenants.id, name: tenants.name }).from(tenants);
-  const sdrList = await db.select({ id: users.id, name: users.name }).from(users)
-    .where(eq(users.role, "sdr"));
+  // Listas para filtros — SDR só vê seu próprio tenant/SDRs do mesmo tenant
+  const tenantList = currentUser.role === "admin_placego"
+    ? await db.select({ id: tenants.id, name: tenants.name }).from(tenants)
+    : [];
+
+  const sdrList = currentUser.role === "admin_placego"
+    ? await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "sdr"))
+    : currentUser.role === "sdr" && currentUser.tenantId
+    ? await db.select({ id: users.id, name: users.name }).from(users)
+        .where(and(eq(users.role, "sdr"), eq(users.tenantId, currentUser.tenantId)))
+    : [];
 
   return (
     <div className="space-y-4">
