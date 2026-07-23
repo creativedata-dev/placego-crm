@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { WhatsAppManager } from "./whatsapp-manager";
 import { MetaCloudConfig } from "./meta-cloud-config";
+import { MetaTutorial } from "./meta-tutorial";
 
 export default async function TenantWhatsAppPage({
   params,
@@ -35,6 +36,9 @@ export default async function TenantWhatsAppPage({
         metaAccessToken={tenant.metaAccessToken ?? ""}
         metaWabaId={tenant.metaWabaId ?? ""}
       />
+
+      {/* Tutorial Meta Cloud */}
+      <MetaTutorial />
 
       {/* Evolution API — só exibe se provedor = evolution */}
       {provider === "evolution" && (

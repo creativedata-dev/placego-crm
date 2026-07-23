@@ -8,6 +8,8 @@ import { WhatsAppConnector } from "./connectors/whatsapp-connector";
 import { MetaDmConnector } from "./connectors/meta-dm-connector";
 import { EmailConnector } from "./connectors/email-connector";
 import { CommentConnector } from "./connectors/comment-connector";
+import { MetaCloudConfig } from "../whatsapp/meta-cloud-config";
+import { MetaTutorial } from "../whatsapp/meta-tutorial";
 
 export default async function CompanyChannelsPage({
   params,
@@ -42,6 +44,24 @@ export default async function CompanyChannelsPage({
           Configure os canais de atendimento desta empresa. Cada canal ativo recebe
           contatos automaticamente e os distribui para os SDRs.
         </p>
+      </div>
+
+      {/* Provedor de notificações WhatsApp para corretores */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold">Notificações para corretores</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Canal usado para notificar corretores quando um lead é distribuído. Diferente do WhatsApp de atendimento abaixo.
+          </p>
+        </div>
+        <MetaCloudConfig
+          tenantId={id}
+          provider={(tenant.whatsappProvider ?? "evolution") as "evolution" | "meta_cloud"}
+          metaPhoneNumberId={tenant.metaPhoneNumberId ?? ""}
+          metaAccessToken={tenant.metaAccessToken ?? ""}
+          metaWabaId={tenant.metaWabaId ?? ""}
+        />
+        <MetaTutorial />
       </div>
 
       <div className="space-y-4">
