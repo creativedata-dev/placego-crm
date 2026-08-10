@@ -28,14 +28,15 @@ export async function getNextSdrId(tenantId?: string | null): Promise<string | n
 
   const row = (result as any[])[0];
 
-  // Fallback: se não há SDRs para o tenant, usa pool global
+  // Fallback: se não há SDRs vinculados ao tenant, usa SDRs sem tenant (pool global)
+  // Nunca usa SDR de outro tenant para evitar atribuições cruzadas
   if (!row && tenantId) {
     const fallback = await db.execute(sql`
       SELECT u.id
       FROM users u
       LEFT JOIN sdr_assignments sa ON sa.sdr_id = u.id
         AND sa.assigned_at >= ${since}
-      WHERE u.role = 'sdr' AND u.is_active = true
+      WHERE u.role = 'sdr' AND u.is_active = true AND u.tenant_id IS NULL
       GROUP BY u.id, u.sdr_sequence_order
       ORDER BY COUNT(sa.id) ASC, u.sdr_sequence_order ASC
       LIMIT 1
