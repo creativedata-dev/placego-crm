@@ -12,6 +12,7 @@ import {
 import { Plus } from "lucide-react";
 import { ResetPasswordButton } from "./reset-password-button";
 import { ToggleActiveButton } from "./toggle-active-button";
+import { SendNotificationButton } from "./send-notification-button";
 
 const ROLE_LABELS: Record<string, string> = {
   admin_placego: "Admin PlaceGo",
@@ -124,6 +125,7 @@ export default async function UsersPage() {
                 </Button>
                 <ToggleActiveButton userId={u.id} isActive={u.isActive} userName={u.name} />
                 <ResetPasswordButton userId={u.id} userEmail={u.email} />
+                <SendNotificationButton userId={u.id} userName={u.name} />
               </div>
             </div>
           );
@@ -195,6 +197,7 @@ export default async function UsersPage() {
                       </Button>
                       <ToggleActiveButton userId={u.id} isActive={u.isActive} userName={u.name} />
                       <ResetPasswordButton userId={u.id} userEmail={u.email} />
+                      <SendNotificationButton userId={u.id} userName={u.name} />
                     </div>
                   </TableCell>
                 </TableRow>
