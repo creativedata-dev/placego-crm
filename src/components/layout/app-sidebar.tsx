@@ -77,7 +77,7 @@ export function AppSidebar({ user, navItems, tenantName }: AppSidebarProps) {
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-3.5">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "#003762" }}>
+          <div className="h-7 w-7 rounded-lg bg-brand flex items-center justify-center shrink-0">
             <span className="text-xs font-black text-white">PG</span>
           </div>
           <div className="min-w-0">
