@@ -3,12 +3,6 @@ import { db } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
-
 interface PushPayload {
   title: string;
   body: string;
@@ -17,6 +11,12 @@ interface PushPayload {
 }
 
 async function sendToUser(userId: string, payload: PushPayload) {
+  // Configurado aqui para garantir que as env vars estejam disponíveis em runtime
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
   const subs = await db
     .select()
     .from(pushSubscriptions)
