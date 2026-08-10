@@ -7,8 +7,9 @@ import { ScoreBadge } from "./score-badge";
 import { TagPicker } from "@/components/tags/tag-picker";
 import { updateSdrAssignmentStatus } from "@/app/actions/contacts";
 import type { SdrAssignment, Lead, Tag } from "@/db/schema";
-import { CheckCircle, Share2, Archive } from "lucide-react";
+import { CheckCircle, Share2, Archive, MessageSquare } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const ORIGIN_LABELS: Record<string, string> = {
   meta_leadgen: "🎯 Lead Ads", meta_ads: "🎯 Meta Ads", meta_dm_instagram: "📸 Instagram",
@@ -56,6 +57,7 @@ export function SdrLeadCard({
   unreadCount, isAdmin, currentColId, allColumns, onMoveCard, onDragStart, onDragEnd, cardBg,
 }: Props) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const source = propertyAddress
     ? `${propertyAddress}${propertyNeighborhood ? ` — ${propertyNeighborhood}` : ""}`
@@ -134,7 +136,21 @@ export function SdrLeadCard({
         </div>
       )}
 
-      <div className="flex gap-1 pt-1 border-t items-center flex-wrap">
+      <div className="flex flex-col gap-1 pt-1 border-t">
+        {/* Botão Ver conversa — todas as colunas exceto arquivado */}
+        {currentColId !== "arquivado" && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-3 text-xs w-full bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-700 hover:border-zinc-600"
+            onClick={() => router.push(`/sdr/contacts/${contact.id}`)}
+          >
+            <MessageSquare className="h-3 w-3 mr-1" />
+            Ver conversa
+          </Button>
+        )}
+
+      <div className="flex gap-1 items-center flex-wrap">
         <TagPicker contactId={contact.id} initialTags={tags} compact />
 
         {/* Mover coluna — só mobile, via select */}
@@ -190,6 +206,7 @@ export function SdrLeadCard({
             </Button>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

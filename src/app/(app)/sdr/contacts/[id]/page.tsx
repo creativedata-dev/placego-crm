@@ -9,6 +9,7 @@ import { ContactReply } from "./contact-reply";
 import { ContactEditForm } from "./contact-edit-form";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
+import { ScrollToTop } from "@/app/(app)/pipeline/[assignmentId]/scroll-to-top";
 import { ContactStatusActions } from "./contact-status-actions";
 import { TagPicker } from "@/components/tags/tag-picker";
 
@@ -118,6 +119,7 @@ export default async function ContactDetailPage({
 
   return (
     <div className="max-w-5xl space-y-4">
+      <ScrollToTop />
       <MarkRead contactId={id} />
       {/* Header */}
       <div className="flex items-start gap-3">
