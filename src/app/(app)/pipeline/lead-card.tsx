@@ -144,6 +144,7 @@ export function LeadCard({
               onClick={() => {
                 startTransition(() => moveAssignment(assignment.id, "contacted"));
                 onMoveCard?.(assignment.id, "contacted");
+                setActivityOpen(true);
               }}
               disabled={isPending}
             >
