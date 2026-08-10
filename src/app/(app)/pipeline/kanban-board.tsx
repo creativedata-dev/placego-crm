@@ -17,7 +17,7 @@ const COL_CARD_BG: Record<string, string> = {
 };
 
 const COL_HEADER: Record<string, string> = {
-  new:       "bg-blue-500   text-white",
+  new:       "bg-blue-900   text-white",
   contacted: "bg-yellow-500 text-white",
   visiting:  "bg-purple-600 text-white",
   proposal:  "bg-orange-500 text-white",

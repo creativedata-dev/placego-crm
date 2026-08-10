@@ -21,7 +21,7 @@ const COL_CARD_BG: Record<string, string> = {
 
 // Cabeçalho da coluna — cor sólida com texto branco
 const COL_HEADER: Record<string, string> = {
-  novo:        "bg-blue-500   text-white",
+  novo:        "bg-blue-900   text-white",
   em_contato:  "bg-yellow-500 text-white",
   aguardando:  "bg-orange-500 text-white",
   qualificado: "bg-green-600  text-white",
