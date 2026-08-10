@@ -37,6 +37,17 @@ export default function PushTestPage() {
     }
   }
 
+  async function sendTest() {
+    addLog("--- enviando notificação de teste ---");
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json();
+      addLog(`resposta: ${res.status} ${JSON.stringify(data)}`);
+    } catch (e: any) {
+      addLog(`ERRO: ${e.message}`);
+    }
+  }
+
   async function doSubscribe() {
     addLog("--- iniciando subscribe ---");
     try {
@@ -83,6 +94,9 @@ export default function PushTestPage() {
         </button>
         <button onClick={doSubscribe} className="bg-green-600 text-white text-sm px-3 py-1.5 rounded">
           Subscrever
+        </button>
+        <button onClick={sendTest} className="bg-purple-600 text-white text-sm px-3 py-1.5 rounded">
+          Enviar teste
         </button>
         <button onClick={() => setLog([])} className="bg-zinc-600 text-white text-sm px-3 py-1.5 rounded">
           Limpar
