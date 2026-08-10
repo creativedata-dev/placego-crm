@@ -25,6 +25,15 @@ export async function moveAssignment(
   revalidatePath("/pipeline");
 }
 
+export async function archiveAssignment(assignmentId: string) {
+  await requireRole(["corretor", "corretor_tenant", "sdr", "admin_placego"]);
+  await db
+    .update(leadAssignments)
+    .set({ archived: true, updatedAt: new Date() })
+    .where(eq(leadAssignments.id, assignmentId));
+  revalidatePath("/pipeline");
+}
+
 export async function addActivity(formData: FormData) {
   const user = await requireRole([
     "corretor",

@@ -104,6 +104,7 @@ export const leadAssignments = pgTable("lead_assignments", {
   status: assignmentStatusEnum("status").notNull().default("new"),
   lossReason: text("loss_reason"),
   notes: text("notes"),
+  archived: boolean("archived").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

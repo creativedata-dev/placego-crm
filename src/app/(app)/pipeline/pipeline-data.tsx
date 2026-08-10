@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { leadAssignments, leads, users, tags, contactTags, tenants } from "@/db/schema";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray, and, ne } from "drizzle-orm";
 import { KanbanBoard } from "./kanban-board";
 import { COLUMNS } from "./page";
 
@@ -19,11 +19,14 @@ export async function PipelineData({ isAdmin, userId, brokerFilter, tenantId }: 
       : undefined
     : eq(leadAssignments.brokerId, userId);
 
+  const notArchived = ne(leadAssignments.archived, true);
   const whereClause = tenantId
     ? assignmentFilter
-      ? and(assignmentFilter, eq(leads.tenantId, tenantId))
-      : eq(leads.tenantId, tenantId)
-    : assignmentFilter;
+      ? and(assignmentFilter, eq(leads.tenantId, tenantId), notArchived)
+      : and(eq(leads.tenantId, tenantId), notArchived)
+    : assignmentFilter
+      ? and(assignmentFilter, notArchived)
+      : notArchived;
 
   const rows = await db
     .select({

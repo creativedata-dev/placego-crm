@@ -20,9 +20,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { moveAssignment, addActivity } from "@/app/actions/pipeline";
+import { moveAssignment, addActivity, archiveAssignment } from "@/app/actions/pipeline";
 import type { LeadAssignment, Lead, Tag } from "@/db/schema";
-import { Phone, MessageCircle, Mail, MapPin, StickyNote, Plus, ExternalLink, PhoneCall } from "lucide-react";
+import { Phone, MessageCircle, Mail, MapPin, StickyNote, Plus, ExternalLink, PhoneCall, Archive } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -157,11 +157,24 @@ export function LeadCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 px-3 text-xs flex-1"
+              className="h-7 px-3 text-xs flex-1 bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-700 hover:border-zinc-600"
               onClick={() => setActivityOpen(true)}
             >
               <Plus className="h-3 w-3 mr-1" />
               Atividade
+            </Button>
+          )}
+
+          {currentCol === "lost" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
+              onClick={() => startTransition(() => archiveAssignment(assignment.id))}
+              disabled={isPending}
+              title="Arquivar"
+            >
+              <Archive className="h-3 w-3" />
             </Button>
           )}
 
