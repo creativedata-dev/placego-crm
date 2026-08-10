@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { moveAssignment, addActivity } from "@/app/actions/pipeline";
 import type { LeadAssignment, Lead, Tag } from "@/db/schema";
-import { Phone, MessageCircle, Mail, MapPin, StickyNote, ChevronRight, Plus, ExternalLink, PhoneCall } from "lucide-react";
+import { Phone, MessageCircle, Mail, MapPin, StickyNote, Plus, ExternalLink, PhoneCall } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -156,8 +156,8 @@ export function LeadCard({
           ) : (
             <Button
               size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-xs flex-1"
+              variant="outline"
+              className="h-7 px-3 text-xs flex-1"
               onClick={() => setActivityOpen(true)}
             >
               <Plus className="h-3 w-3 mr-1" />
@@ -185,25 +185,6 @@ export function LeadCard({
               ))}
             </select>
           )}
-
-          {/* Mover para próxima coluna — desktop */}
-          {(() => {
-            const next = allColumns.find(
-              (c, i) => allColumns[i - 1]?.id === currentCol
-            );
-            return next ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hidden md:flex h-6 px-2 text-xs"
-                onClick={() => handleMove(next.id)}
-                disabled={isPending}
-                title={`Mover para ${next.label}`}
-              >
-                <ChevronRight className="h-3 w-3" />
-              </Button>
-            ) : null;
-          })()}
         </div>
       </div>
 
