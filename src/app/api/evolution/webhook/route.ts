@@ -141,19 +141,22 @@ export async function POST(request: Request) {
       }
     } else {
       // Mensagem de texto
-      messageText = data?.message?.conversation
-        ?? data?.message?.extendedTextMessage?.text
-        ?? data?.message?.ephemeralMessage?.message?.extendedTextMessage?.text
-        ?? data?.message?.ephemeralMessage?.message?.conversation
-        ?? data?.message?.locationMessage
-          ? `📍 Localização: https://maps.google.com/?q=${data.message.locationMessage.degreesLatitude},${data.message.locationMessage.degreesLongitude}`
-        : data?.message?.contactMessage
-          ? `👤 Contato: ${data.message.contactMessage.displayName}`
-        : data?.message?.pollCreationMessage
-          ? `📊 Enquete: ${data.message.pollCreationMessage.name}`
-        : null;
+      const msg = data?.message;
+      const text =
+        msg?.conversation
+        ?? msg?.extendedTextMessage?.text
+        ?? msg?.ephemeralMessage?.message?.extendedTextMessage?.text
+        ?? msg?.ephemeralMessage?.message?.conversation
+        ?? (msg?.locationMessage
+          ? `📍 Localização: https://maps.google.com/?q=${msg.locationMessage.degreesLatitude},${msg.locationMessage.degreesLongitude}`
+          : msg?.contactMessage
+          ? `👤 Contato: ${msg.contactMessage.displayName}`
+          : msg?.pollCreationMessage
+          ? `📊 Enquete: ${msg.pollCreationMessage.name}`
+          : null);
 
-      if (!messageText) return NextResponse.json({ ok: true });
+      if (!text) return NextResponse.json({ ok: true });
+      messageText = text;
     }
 
     await ingestContactMessage({
