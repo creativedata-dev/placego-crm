@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { moveAssignment, addActivity } from "@/app/actions/pipeline";
 import type { LeadAssignment, Lead, Tag } from "@/db/schema";
-import { Phone, MessageCircle, Mail, MapPin, StickyNote, ChevronRight, Plus, ExternalLink } from "lucide-react";
+import { Phone, MessageCircle, Mail, MapPin, StickyNote, ChevronRight, Plus, ExternalLink, PhoneCall } from "lucide-react";
 import Link from "next/link";
 
 const ACTIVITY_ICONS = {
@@ -136,15 +136,31 @@ export function LeadCard({
 
         {/* Ações rápidas */}
         <div className="flex gap-1 pt-1 border-t flex-wrap">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 px-2 text-xs flex-1"
-            onClick={() => setActivityOpen(true)}
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            Atividade
-          </Button>
+          {currentCol === "new" ? (
+            <Button
+              size="sm"
+              variant="default"
+              className="h-7 px-3 text-xs flex-1 bg-blue-900 hover:bg-blue-800 text-white"
+              onClick={() => {
+                startTransition(() => moveAssignment(assignment.id, "contacted"));
+                onMoveCard?.(assignment.id, "contacted");
+              }}
+              disabled={isPending}
+            >
+              <PhoneCall className="h-3 w-3 mr-1" />
+              Entrar em Contato
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs flex-1"
+              onClick={() => setActivityOpen(true)}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Atividade
+            </Button>
+          )}
 
           {/* Mover — select no mobile */}
           {onMoveCard && (

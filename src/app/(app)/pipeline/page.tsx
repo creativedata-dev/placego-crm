@@ -9,7 +9,7 @@ import Loading from "./loading";
 
 export const COLUMNS = [
   { id: "new", label: "Novo", color: "bg-blue-500" },
-  { id: "contacted", label: "Contatado", color: "bg-yellow-500" },
+  { id: "contacted", label: "Em Contato", color: "bg-yellow-500" },
   { id: "visiting", label: "Visita Agendada", color: "bg-purple-500" },
   { id: "proposal", label: "Proposta", color: "bg-orange-500" },
   { id: "won", label: "Ganho", color: "bg-green-500" },

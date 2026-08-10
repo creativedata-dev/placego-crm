@@ -10,7 +10,7 @@ import { ContactTimeline } from "@/app/(app)/sdr/contacts/[id]/contact-timeline"
 import { ContactReply } from "@/app/(app)/sdr/contacts/[id]/contact-reply";
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "Novo", contacted: "Contatado", visiting: "Visita Agendada",
+  new: "Novo", contacted: "Em Contato", visiting: "Visita Agendada",
   proposal: "Proposta", won: "Ganho", lost: "Perdido",
 };
 
