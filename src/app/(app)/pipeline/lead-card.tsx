@@ -24,6 +24,7 @@ import { moveAssignment, addActivity } from "@/app/actions/pipeline";
 import type { LeadAssignment, Lead, Tag } from "@/db/schema";
 import { Phone, MessageCircle, Mail, MapPin, StickyNote, ChevronRight, Plus, ExternalLink, PhoneCall } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const ACTIVITY_ICONS = {
   call: <Phone className="h-3 w-3" />,
@@ -66,6 +67,7 @@ export function LeadCard({
   const [lossOpen, setLossOpen] = useState(false);
   const [lossReason, setLossReason] = useState("");
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const age = Math.floor(
     (Date.now() - new Date(assignment.assignedAt).getTime()) / 86400000
@@ -144,7 +146,7 @@ export function LeadCard({
               onClick={() => {
                 startTransition(() => moveAssignment(assignment.id, "contacted"));
                 onMoveCard?.(assignment.id, "contacted");
-                setActivityOpen(true);
+                router.push(`/pipeline/${assignment.id}`);
               }}
               disabled={isPending}
             >
