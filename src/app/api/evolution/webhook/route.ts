@@ -92,6 +92,7 @@ export async function POST(request: Request) {
     if (event !== "messages.upsert") return NextResponse.json({ ok: true });
     if (data?.key?.fromMe) return NextResponse.json({ ok: true });
     if (data?.messageType === "protocolMessage") return NextResponse.json({ ok: true });
+    if (data?.messageType === "reactionMessage") return NextResponse.json({ ok: true });
 
     const slug = instance?.replace("placego-", "");
     if (!slug) return NextResponse.json({ ok: true });
@@ -142,7 +143,17 @@ export async function POST(request: Request) {
       // Mensagem de texto
       messageText = data?.message?.conversation
         ?? data?.message?.extendedTextMessage?.text
-        ?? "[mensagem]";
+        ?? data?.message?.ephemeralMessage?.message?.extendedTextMessage?.text
+        ?? data?.message?.ephemeralMessage?.message?.conversation
+        ?? data?.message?.locationMessage
+          ? `📍 Localização: https://maps.google.com/?q=${data.message.locationMessage.degreesLatitude},${data.message.locationMessage.degreesLongitude}`
+        : data?.message?.contactMessage
+          ? `👤 Contato: ${data.message.contactMessage.displayName}`
+        : data?.message?.pollCreationMessage
+          ? `📊 Enquete: ${data.message.pollCreationMessage.name}`
+        : null;
+
+      if (!messageText) return NextResponse.json({ ok: true });
     }
 
     await ingestContactMessage({
