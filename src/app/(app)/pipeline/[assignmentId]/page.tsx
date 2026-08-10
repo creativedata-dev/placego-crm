@@ -110,7 +110,6 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
     <div className="max-w-5xl space-y-4">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <BackButton href="/pipeline" />
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold">{lead.name}</h1>
@@ -125,6 +124,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
             {lead.adName && <span>📢 {lead.adName}</span>}
           </div>
         </div>
+        <BackButton href="/pipeline" />
       </div>
 
       {assignment.lossReason && (

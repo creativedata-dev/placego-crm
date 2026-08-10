@@ -9,9 +9,9 @@ export function BackButton({ label, href }: { label?: string; href?: string } = 
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="outline"
       size="sm"
-      className="gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
+      className="gap-1.5 shrink-0 bg-zinc-100 hover:bg-zinc-200 border-zinc-300 text-zinc-700"
       onClick={() => href ? router.push(href) : history.back()}
     >
       <X className="h-4 w-4" />
