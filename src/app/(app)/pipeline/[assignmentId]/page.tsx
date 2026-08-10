@@ -4,6 +4,7 @@ import { leadAssignments, leads, users, leadActivities, contactMessages, sdrAssi
 import { eq, desc } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { BackButton } from "@/components/ui/back-button";
+import { ScrollToTop } from "./scroll-to-top";
 import { Badge } from "@/components/ui/badge";
 import { NoteForm } from "./note-form";
 import { ContactTimeline } from "@/app/(app)/sdr/contacts/[id]/contact-timeline";
@@ -108,6 +109,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="max-w-5xl space-y-4">
+      <ScrollToTop />
       {/* Header */}
       <div className="flex items-start gap-3">
         <div className="flex-1">
