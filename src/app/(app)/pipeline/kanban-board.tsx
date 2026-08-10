@@ -8,21 +8,30 @@ import type { LeadAssignment, Lead, Tag } from "@/db/schema";
 import { ChevronDown } from "lucide-react";
 
 const COL_CARD_BG: Record<string, string> = {
-  new:       "bg-blue-100   dark:bg-blue-900/40   border-blue-200   dark:border-blue-800",
-  contacted: "bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-800",
-  visiting:  "bg-purple-100 dark:bg-purple-900/40 border-purple-200 dark:border-purple-800",
-  proposal:  "bg-orange-100 dark:bg-orange-900/40 border-orange-200 dark:border-orange-800",
-  won:       "bg-green-100  dark:bg-green-900/40  border-green-200  dark:border-green-800",
-  lost:      "bg-red-100    dark:bg-red-900/40    border-red-200    dark:border-red-800",
+  new:       "bg-blue-100   border-blue-300   dark:bg-blue-900/50   dark:border-blue-700",
+  contacted: "bg-yellow-100 border-yellow-300 dark:bg-yellow-900/50 dark:border-yellow-700",
+  visiting:  "bg-purple-100 border-purple-300 dark:bg-purple-900/50 dark:border-purple-700",
+  proposal:  "bg-orange-100 border-orange-300 dark:bg-orange-900/50 dark:border-orange-700",
+  won:       "bg-green-100  border-green-300  dark:bg-green-900/50  dark:border-green-700",
+  lost:      "bg-red-100    border-red-300    dark:bg-red-900/50    dark:border-red-700",
+};
+
+const COL_HEADER: Record<string, string> = {
+  new:       "bg-blue-500   text-white",
+  contacted: "bg-yellow-500 text-white",
+  visiting:  "bg-purple-600 text-white",
+  proposal:  "bg-orange-500 text-white",
+  won:       "bg-green-600  text-white",
+  lost:      "bg-red-600    text-white",
 };
 
 const COL_BG: Record<string, string> = {
-  new:       "bg-blue-200/70   dark:bg-blue-950/70",
-  contacted: "bg-yellow-200/70 dark:bg-yellow-950/70",
-  visiting:  "bg-purple-200/70 dark:bg-purple-950/70",
-  proposal:  "bg-orange-200/70 dark:bg-orange-950/70",
-  won:       "bg-green-200/70  dark:bg-green-950/70",
-  lost:      "bg-red-200/70    dark:bg-red-950/70",
+  new:       "bg-blue-50   dark:bg-blue-950/40",
+  contacted: "bg-yellow-50 dark:bg-yellow-950/40",
+  visiting:  "bg-purple-50 dark:bg-purple-950/40",
+  proposal:  "bg-orange-50 dark:bg-orange-950/40",
+  won:       "bg-green-50  dark:bg-green-950/40",
+  lost:      "bg-red-50    dark:bg-red-950/40",
 };
 
 type ColumnData = {
@@ -93,22 +102,19 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
         {columns.map((col) => {
           const isOpen = openCols.has(col.id);
           return (
-            <div key={col.id} className={`border rounded-xl overflow-hidden ${COL_BG[col.id] ?? "bg-muted/30"}`}>
+            <div key={col.id} className="border rounded-xl overflow-hidden">
               <button
                 onClick={() => toggleCol(col.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:brightness-95 transition-all text-left active:brightness-90"
+                className={`w-full flex items-center gap-3 px-4 py-3.5 hover:brightness-90 transition-all text-left active:brightness-85 ${COL_HEADER[col.id] ?? "bg-muted text-foreground"}`}
               >
-                <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${col.color}`} />
-                <span className="font-semibold text-sm flex-1">{col.label}</span>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  col.cards.length > 0 ? "bg-foreground/10 text-foreground" : "bg-muted text-muted-foreground"
-                }`}>
+                <span className="font-bold text-sm flex-1">{col.label}</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/25 text-white">
                   {col.cards.length}
                 </span>
-                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`h-4 w-4 text-white/80 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
               </button>
               {isOpen && (
-                <div className="flex flex-col gap-2 p-2 bg-background">
+                <div className={`flex flex-col gap-2 p-2 ${COL_BG[col.id] ?? "bg-muted/20"}`}>
                   {col.cards.length === 0 ? (
                     <div className="text-center py-8 space-y-1">
                       <p className="text-2xl">😴</p>
@@ -146,19 +152,18 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
         {columns.map((col) => (
           <div
             key={col.id}
-            className={`flex flex-col min-w-[260px] w-[260px] rounded-xl border transition-colors ${
-              COL_BG[col.id] ?? "bg-muted/40"
-            } ${dragOver === col.id ? "ring-2 ring-primary brightness-95" : ""}`}
+            className={`flex flex-col min-w-[260px] w-[260px] rounded-xl border overflow-hidden transition-colors ${
+              dragOver === col.id ? "ring-2 ring-primary brightness-95" : ""
+            }`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(col.id); }}
             onDragLeave={() => setDragOver(null)}
             onDrop={() => handleDrop(col.id)}
           >
-            <div className="flex items-center gap-2 px-3 py-3 border-b">
-              <span className={`h-2.5 w-2.5 rounded-full ${col.color}`} />
-              <span className="font-semibold text-sm">{col.label}</span>
-              <Badge variant="secondary" className="ml-auto text-xs">{col.cards.length}</Badge>
+            <div className={`flex items-center gap-2 px-3 py-3 ${COL_HEADER[col.id] ?? "bg-muted"}`}>
+              <span className="font-bold text-sm text-white flex-1">{col.label}</span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/25 text-white">{col.cards.length}</span>
             </div>
-            <div className="flex flex-col gap-2 p-2 flex-1 min-h-[120px]">
+            <div className={`flex flex-col gap-2 p-2 flex-1 min-h-[120px] ${COL_BG[col.id] ?? "bg-muted/20"}`}>
               {col.cards.length === 0 && (
                 <div className="text-center py-6 space-y-1">
                   <p className="text-lg">😴</p>
