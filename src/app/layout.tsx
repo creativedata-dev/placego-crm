@@ -30,7 +30,7 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <head>
-        <meta name="theme-color" content="#18181b" />
+        <meta name="theme-color" content="#003762" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body suppressHydrationWarning className="min-h-full flex flex-col">{children}</body>
