@@ -108,7 +108,7 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
                 className={`w-full flex items-center gap-3 px-4 py-3.5 hover:brightness-90 transition-all text-left active:brightness-85 ${COL_HEADER[col.id] ?? "bg-muted text-foreground"}`}
               >
                 <span className="font-bold text-sm flex-1">{col.label}</span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/25 text-white">
+                <span className="text-sm font-black px-2.5 py-0.5 rounded-full bg-red-600 text-white shadow-sm">
                   {col.cards.length}
                 </span>
                 <ChevronDown className={`h-4 w-4 text-white/80 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
@@ -161,7 +161,7 @@ export function KanbanBoard({ columns: initialColumns, isAdmin }: Props) {
           >
             <div className={`flex items-center gap-2 px-3 py-3 ${COL_HEADER[col.id] ?? "bg-muted"}`}>
               <span className="font-bold text-sm text-white flex-1">{col.label}</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/25 text-white">{col.cards.length}</span>
+              <span className="text-sm font-black px-2.5 py-0.5 rounded-full bg-red-600 text-white shadow-sm">{col.cards.length}</span>
             </div>
             <div className={`flex flex-col gap-2 p-2 flex-1 min-h-[120px] ${COL_BG[col.id] ?? "bg-muted/20"}`}>
               {col.cards.length === 0 && (
