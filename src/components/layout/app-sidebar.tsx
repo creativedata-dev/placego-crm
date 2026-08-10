@@ -16,6 +16,7 @@ import {
   ContactRound,
   Plug,
   LogOut,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +34,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { NavItem } from "@/lib/navigation";
+import { PushSubscribe } from "@/components/pwa/push-subscribe";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -118,7 +120,8 @@ export function AppSidebar({ user, navItems, tenantName }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-4">
+      <SidebarFooter className="border-t p-4 space-y-3">
+        <PushSubscribe />
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="text-xs bg-sidebar-accent text-sidebar-foreground">{initials}</AvatarFallback>

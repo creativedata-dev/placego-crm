@@ -8,7 +8,6 @@ import { db } from "@/db";
 import { tenants } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
-import { PushSubscribe } from "@/components/pwa/push-subscribe";
 
 export default async function AppLayout({
   children,
@@ -49,9 +48,6 @@ export default async function AppLayout({
         <header suppressHydrationWarning className="fixed top-0 left-0 right-0 z-40 border-b px-3 py-2.5 flex items-center gap-3 bg-zinc-900 sm:static sm:bg-background sm:border-b sm:px-4 sm:py-3">
           <SidebarTrigger className="text-white/80 hover:text-white sm:text-foreground shrink-0" />
           <PageTitle />
-          <div className="hidden sm:block ml-auto">
-            <PushSubscribe />
-          </div>
           {/* Avatar + logout — só mobile */}
           <div className="sm:hidden ml-auto flex items-center gap-2">
             <div className="flex items-center gap-2">
