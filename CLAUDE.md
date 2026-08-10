@@ -16,6 +16,7 @@ Documentação técnica para desenvolvimento com IA e onboarding de devs.
 | ORM | Drizzle ORM | — |
 | Email | Resend | — |
 | WhatsApp | Evolution API | ativo |
+| Push | Web Push API + VAPID + `web-push` | ativo |
 | Deploy | Vercel | — |
 
 ---
@@ -48,28 +49,58 @@ Documentação técnica para desenvolvimento com IA e onboarding de devs.
 - SDRs também podem acessar o pipeline com filtro por corretor (`/pipeline?broker=<id>`)
 
 ### Cores dos cards por coluna (Kanban/Pipeline)
-Tailwind classes precisam ser **estáticas** (não geradas em runtime). Os mapas `COL_CARD_BG` ficam nos arquivos dos boards:
-- `src/app/(app)/sdr/queue/sdr-kanban-board.tsx` — novo=azul, em_contato=amarelo, aguardando=laranja, qualificado=verde, distribuido=roxo, invalido=vermelho
-- `src/app/(app)/pipeline/kanban-board.tsx` — new=azul, contacted=amarelo, visiting=roxo, proposal=laranja, won=verde, lost=vermelho
+Tailwind classes precisam ser **estáticas** (não geradas em runtime). Os mapas ficam nos arquivos dos boards:
+- `src/app/(app)/sdr/queue/sdr-kanban-board.tsx` — `COL_CARD_BG`, `COL_HEADER`, `COL_BG`
+- `src/app/(app)/pipeline/kanban-board.tsx` — `COL_CARD_BG`, `COL_HEADER`, `COL_BG`
+- Coluna `novo`/`new`: header `bg-blue-900` (azul marinho)
+- Headers: cor sólida + texto branco. Badges contador: `bg-red-600 text-white text-sm font-black`
+
+### Cor brand
+- `#003762` definida em `src/app/globals.css` como `--color-brand` dentro do bloco `@theme inline`
+- Usar classe `bg-brand` (não inline style — causa hydration mismatch em Server Components)
 
 ---
 
 ## Features implementadas
 
+### PWA + Push Notifications
+- Manifest: `public/manifest.json`, ícones: `public/icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon.png`
+- Service Worker: `public/sw.js` — cache-first estático, network-first rotas, push listener
+- Middleware de auth exclui `sw.js` e `manifest.json` (matcher em `src/proxy.ts`)
+- VAPID keys: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` no `.env.local`
+- Tabela `push_subscriptions` (migração: `src/db/migrate-push-subscriptions.ts`)
+- `src/lib/push.ts`: `sendToUser()`, `notifySdrNewContact()`, `notifyBrokerNewLead()`
+  - ⚠️ `webpush.setVapidDetails()` deve ser chamado **dentro** de `sendToUser()`, nunca no nível do módulo (quebra build Vercel)
+- APIs: `POST /api/push/subscribe`, `DELETE /api/push/subscribe`, `POST /api/push/send`
+- `PushSubscribe` button no `SidebarFooter`
+- SDR recebe push ao receber novo contato; corretor recebe push ao receber novo lead
+- Chrome Android 13+: push aparece só na barra de notificações, sem pop-up — limitação de plataforma
+
 ### Captura de contatos
 - Webhook Meta Lead Ads: `POST /api/leads/capture?token=<webhook_token>`
 - Landing Page: `POST /api/leads/lp`
 - Manual via UI: `src/app/actions/contacts.ts → createContact`
-- Todas as entradas passam por `src/lib/contact-ingestion.ts` (dedup + score + round-robin)
+- Todas as entradas passam por `src/lib/contact-ingestion.ts` (dedup + score + round-robin + push SDR)
+
+### Webhook WhatsApp (Evolution API)
+- `POST /api/evolution/webhook` — tipos tratados:
+  - `protocolMessage`, `reactionMessage` → ignorados silenciosamente
+  - texto: `conversation`, `extendedTextMessage.text`, `ephemeralMessage`
+  - `locationMessage` → `📍 Localização: https://maps.google.com/?q=lat,lng`
+  - `contactMessage` → `👤 Contato: displayName`
+  - `pollCreationMessage` → `📊 Enquete: name`
+  - mídia (image, audio, video, document, sticker, ptt) → download base64 + upload Supabase Storage
+  - tipos desconhecidos sem texto → ignorados (não salva `[mensagem]`)
 
 ### Notificações ao corretor
-- Email via Resend (`src/lib/email.ts`): inclui nome, telefone, email e notas do contato
-- WhatsApp via Evolution API (`src/lib/evolution.ts`): inclui 📱 telefone, ✉️ email, 📝 notas
+- Email via Resend (`src/lib/email.ts`)
+- WhatsApp via Evolution API (`src/lib/evolution.ts`)
+- Push notification via `src/lib/push.ts`
 - Disparadas em `src/app/actions/routing.ts` ao distribuir lead
 
 ### ACK de mensagens WhatsApp
-- Ticks de status nas mensagens: pendente / enviado / entregue / lido
-- Gerenciado via webhook da Evolution API
+- Ticks de status: pendente / enviado / entregue / lido
+- Gerenciado via `messages.update` no webhook da Evolution API
 
 ### Dashboard Admin (`/dashboard`)
 - 5 KPI cards com gradientes coloridos, ícones Lucide e mini barras de progresso
@@ -89,6 +120,7 @@ Tailwind classes precisam ser **estáticas** (não geradas em runtime). Os mapas
 - Cards com background colorido por coluna
 - Badges de origem com emoji + cores por canal
 - Score de qualidade, tags, ações rápidas (qualificar, distribuir, arquivar)
+- **Botão "Ver conversa"** (cinza chumbo) em todos os cards exceto arquivados → navega para `/sdr/contacts/[id]`
 - Seção arquivados colapsável separada
 
 ### Pipeline Corretor (`/pipeline`)
@@ -96,19 +128,33 @@ Tailwind classes precisam ser **estáticas** (não geradas em runtime). Os mapas
 - Mobile: accordion vertical colapsável
 - Cards com background colorido por coluna
 - Filtro por corretor para admin/SDR (`?broker=<id>`)
+- **Coluna "Novo"**: botão "Entrar em Contato" (azul marinho) → move para "Em Contato" + navega para `/pipeline/[assignmentId]`
+- **Coluna "Em Contato" e demais**: botão "+ Atividade" (cinza chumbo) abre dialog
+- **Coluna "Perdido"**: botão arquivar (ícone Archive) → `archived=true`, some do kanban
+- Leads arquivados filtrados com `ne(leadAssignments.archived, true)` na query
 - Dialog de atividade (ligação, whatsapp, email, visita, nota)
 - Dialog de motivo de perda ao mover para "lost"
+
+### Página de detalhe do lead (`/pipeline/[assignmentId]`)
+- Histórico de WhatsApp, dados do lead, timeline de atividades, formulário de registro
+- `BackButton` com `href="/pipeline"` fixo (não `history.back()` — pode levar para rota errada)
+- `ScrollToTop` client component: `window.scrollTo(0,0)` no mount para corrigir posição no mobile
+- `loading.tsx` com skeleton para reduzir percepção de delay
+
+### Página de detalhe do contato SDR (`/sdr/contacts/[id]`)
+- `ScrollToTop` e `loading.tsx` skeleton (mesmo padrão do pipeline)
+- `BackButton` com `label="← Fila"` volta para `/sdr/queue`
 
 ### Routing SDR → Corretor (`/sdr/routing/:contactId`)
 - Engine de score de afinidade (`src/lib/routing-engine.ts`)
 - Apenas corretores **ativos** aparecem para distribuição
-- Envia email + WhatsApp ao corretor com dados do contato
+- Envia email + WhatsApp + push ao corretor com dados do contato
 
 ### Layout mobile
-- Header com cor `bg-zinc-900` no mobile, com título da página atual via `PageTitle` component
+- Header fixo com cor `bg-brand` no mobile, título da página via `PageTitle`
 - Sidebar fecha automaticamente ao navegar (`setOpenMobile(false)`)
 - `min-w-0 overflow-x-hidden` no `<main>` para evitar overflow horizontal
-- Loading skeletons nas rotas: `/sdr/queue`, `/pipeline`, `/contatos`
+- Loading skeletons nas rotas: `/sdr/queue`, `/pipeline`, `/contatos`, `/pipeline/[id]`, `/sdr/contacts/[id]`
 
 ---
 
@@ -117,7 +163,6 @@ Tailwind classes precisam ser **estáticas** (não geradas em runtime). Os mapas
 ### Base UI — prop `render` em vez de `asChild`
 Esta versão do shadcn usa Base UI internamente. Componentes **não aceitam `asChild`**.
 
-Para renderizar um `Button` como link:
 ```tsx
 // ✅ correto
 <Button nativeButton={false} render={<Link href="/rota" />}>
@@ -135,38 +180,58 @@ Para `SidebarMenuButton` (não expõe `nativeButton`):
 </SidebarMenuButton>
 ```
 
-Para `DropdownMenuTrigger`:
-```tsx
-<DropdownMenuTrigger render={<Button variant="ghost">...</Button>} />
-```
-
 ### Server Components — sem event handlers inline
-Nunca coloque `onClick`, `onChange` etc. em Server Components (páginas sem `"use client"`).
-
 ```tsx
-// ❌ erro em runtime — Server Component
+// ❌ erro em runtime
 export default async function Page() {
   return <Button onClick={() => history.back()}>Cancelar</Button>
 }
 
-// ✅ usar o BackButton client component
+// ✅ usar BackButton client component
 import { BackButton } from "@/components/ui/back-button"
 export default async function Page() {
-  return <BackButton />
+  return <BackButton href="/pipeline" />  // href fixo quando necessário
+}
+```
+
+### BackButton — usar `href` quando a rota de retorno é conhecida
+`history.back()` pode levar para rota errada quando o usuário navega via `router.push()` de outra página.
+```tsx
+// ✅ correto — sempre volta para /pipeline
+<BackButton href="/pipeline" />
+
+// ⚠️ cuidado — depende do histórico do browser
+<BackButton />  // usa history.back()
+```
+
+### Cor brand — usar classe Tailwind, não inline style
+```tsx
+// ❌ causa hydration mismatch em Server Components
+<div style={{ backgroundColor: "#003762" }}>
+
+// ✅ correto — definida em globals.css @theme inline
+<div className="bg-brand">
+```
+
+### web-push — setVapidDetails dentro da função
+```ts
+// ❌ quebra o build da Vercel (env var não disponível em build time)
+webpush.setVapidDetails(...)  // nível de módulo
+
+// ✅ correto — dentro da função que envia
+async function sendToUser(userId: string, ...) {
+  webpush.setVapidDetails(...)  // dentro da função
 }
 ```
 
 ### Tailwind — classes estáticas obrigatórias
-Tailwind v4 não gera classes criadas dinamicamente em runtime. Use sempre mapas estáticos:
-
 ```ts
 // ❌ não funciona
 const bg = `bg-${color}-50`
 
 // ✅ mapa estático com todas as classes explícitas
 const COL_CARD_BG: Record<string, string> = {
-  novo: "bg-blue-50 border-blue-100",
-  // ...
+  novo: "bg-blue-100 border-blue-300",
 }
 ```
 
@@ -192,19 +257,25 @@ run().catch(console.error)
 Rodar com: `npx tsx src/db/alguma-migracao.ts`
 
 ### Datas em queries raw SQL
-O `postgres.js` na Vercel não aceita objetos `Date` como parâmetros em `db.execute(sql\`...\`)`. Sempre converter para ISO string:
-
 ```ts
 // ❌ falha na Vercel
-const date = new Date()
-await db.execute(sql`SELECT * FROM leads WHERE created_at >= ${date}`)
+await db.execute(sql`SELECT * FROM leads WHERE created_at >= ${new Date()}`)
 
 // ✅ correto
-const dateISO = new Date().toISOString()
-await db.execute(sql`SELECT * FROM leads WHERE created_at >= ${dateISO}`)
+await db.execute(sql`SELECT * FROM leads WHERE created_at >= ${new Date().toISOString()}`)
 
 // Para Drizzle ORM (não raw): Date funciona normalmente
 db.select().from(leads).where(gte(leads.createdAt, date))
+```
+
+### Favicon — PNGs devem ser RGBA
+Next.js exige PNGs em formato RGBA dentro do ICO. Usar `ensureAlpha()` ao gerar com sharp:
+```ts
+await sharp("public/logo.png")
+  .resize(32, 32, { fit: "contain", background: { r:255,g:255,b:255,alpha:1 } })
+  .ensureAlpha()
+  .toFormat("png")
+  .toBuffer()
 ```
 
 ---
@@ -219,69 +290,84 @@ src/
 │   │   ├── tenants/         ← CRUD empresas + webhook por empresa
 │   │   ├── brokers/         ← CRUD corretores + preferências afinidade (SDR pode ver)
 │   │   ├── properties/      ← CRUD imóveis e empreendimentos
-│   │   ├── users/           ← CRUD usuários (admin) — inclui campo empresa para SDR/corretor
+│   │   ├── users/           ← CRUD usuários (admin) + botão enviar push por usuário
 │   │   ├── contatos/        ← Lista de contatos com loading skeleton
+│   │   ├── push-test/       ← Página de debug PWA/push (dev)
 │   │   ├── sdr/
-│   │   │   ├── queue/       ← Kanban SDR accordion + cores por coluna
-│   │   │   │   ├── loading.tsx          ← Skeleton de carregamento
-│   │   │   │   ├── sdr-kanban-board.tsx ← Board (accordion mobile + drag desktop)
-│   │   │   │   └── sdr-lead-card.tsx   ← Card com origem emoji + cor + score
-│   │   │   ├── routing/     ← Tela de distribuição lead → corretores (só ativos)
-│   │   │   └── dashboard/   ← Dashboard SDR com SLA, KPIs coloridos e performance
+│   │   │   ├── queue/       ← Kanban SDR accordion + cores + botão "Ver conversa"
+│   │   │   │   ├── loading.tsx
+│   │   │   │   ├── sdr-kanban-board.tsx
+│   │   │   │   └── sdr-lead-card.tsx
+│   │   │   ├── contacts/[id]/  ← Detalhe contato SDR com timeline + reply
+│   │   │   │   ├── loading.tsx
+│   │   │   │   └── scroll-to-top (via import do pipeline)
+│   │   │   ├── routing/     ← Distribuição lead → corretores (só ativos)
+│   │   │   └── dashboard/   ← Dashboard SDR com SLA, KPIs e performance
 │   │   ├── pipeline/        ← Kanban vendas accordion + cores por coluna
-│   │   │   ├── loading.tsx             ← Skeleton de carregamento
-│   │   │   ├── kanban-board.tsx        ← Board (accordion mobile + drag desktop)
-│   │   │   ├── lead-card.tsx           ← Card com ações e dialogs
-│   │   │   └── pipeline-broker-filter.tsx ← Filtro por corretor (admin/SDR)
+│   │   │   ├── loading.tsx
+│   │   │   ├── kanban-board.tsx
+│   │   │   ├── lead-card.tsx   ← "Entrar em Contato" na col new, "Atividade" nas demais, "Arquivar" na lost
+│   │   │   ├── pipeline-broker-filter.tsx
+│   │   │   └── [assignmentId]/
+│   │   │       ├── page.tsx        ← Detalhe lead: conversa + atividades + reply
+│   │   │       ├── loading.tsx     ← Skeleton
+│   │   │       ├── scroll-to-top.tsx ← Client component: window.scrollTo(0,0) no mount
+│   │   │       └── note-form.tsx
 │   │   ├── reports/         ← Exportação CSV
 │   │   └── tenant/          ← Painel da empresa parceira
 │   ├── api/
 │   │   ├── leads/capture/   ← Webhook Meta Lead Ads
 │   │   ├── leads/lp/        ← Webhook Landing Page
+│   │   ├── evolution/webhook/ ← Webhook WhatsApp (messages.upsert + messages.update)
+│   │   ├── push/subscribe/  ← Salvar/remover subscription Web Push
+│   │   ├── push/send/       ← Enviar push para userId específico
+│   │   ├── push/test/       ← Endpoint de teste push
 │   │   └── reports/         ← Endpoints CSV
 │   ├── auth/
 │   │   ├── callback/        ← OAuth callback Supabase
 │   │   └── signout/         ← Logout (POST → redirect 303)
-│   ├── actions/             ← Server Actions
-│   │   ├── tenants.ts       ← CRUD empresas + gerar/revogar webhook token
+│   ├── actions/
+│   │   ├── tenants.ts
 │   │   ├── properties.ts
-│   │   ├── brokers.ts       ← updateBrokerPreferences salva tenantId
+│   │   ├── brokers.ts
 │   │   ├── contacts.ts      ← createContact + updateSdrAssignmentStatus
-│   │   ├── routing.ts       ← Distribuição lead → corretor + email + WhatsApp c/ dados do contato
-│   │   └── pipeline.ts      ← Mover kanban + registrar atividade
+│   │   ├── routing.ts       ← Distribuição + email + WhatsApp + push
+│   │   └── pipeline.ts      ← moveAssignment + addActivity + archiveAssignment
 │   └── login/
 ├── components/
 │   ├── ui/
-│   │   └── back-button.tsx  ← Client component para navegação back
+│   │   └── back-button.tsx  ← Client: onClick → href fixo ou history.back()
 │   ├── layout/
-│   │   ├── app-sidebar.tsx  ← Sidebar com nav por role + setOpenMobile no click
-│   │   └── page-title.tsx   ← Título da página atual para header mobile
+│   │   ├── app-sidebar.tsx  ← PushSubscribe no SidebarFooter
+│   │   └── page-title.tsx
+│   ├── pwa/
+│   │   ├── service-worker-register.tsx ← Registra /sw.js no mount
+│   │   └── push-subscribe.tsx          ← Botão subscribe/unsubscribe com estados
 │   ├── tags/
-│   │   └── tag-picker.tsx   ← Seletor de tags nos cards SDR
+│   │   └── tag-picker.tsx
 │   ├── tenants/
 │   └── properties/
 ├── db/
-│   ├── index.ts             ← Instância Drizzle (singleton)
-│   ├── schema/              ← Tabelas Drizzle
-│   │   ├── tenants.ts       ← companies/tenants
-│   │   ├── users.ts         ← users com sdr_sequence_order, tenant_id, is_active
-│   │   ├── properties.ts    ← properties + developments
-│   │   ├── leads.ts         ← contacts + sdr_assignments + lead_assignments + activities + tags
-│   │   └── brokers.ts       ← broker_preferences
-│   └── seed.ts              ← Admin inicial
+│   ├── index.ts
+│   ├── schema/
+│   │   ├── tenants.ts
+│   │   ├── users.ts
+│   │   ├── properties.ts
+│   │   ├── leads.ts         ← lead_assignments tem coluna `archived boolean default false`
+│   │   ├── brokers.ts
+│   │   └── push.ts          ← push_subscriptions
+│   └── seed.ts
 ├── lib/
-│   ├── auth.ts              ← requireAuth, requireRole, getCurrentUser
-│   ├── navigation.ts        ← Itens de menu por role
-│   ├── contact-ingestion.ts ← Dedup (scoped por tenant) + score + round-robin
-│   ├── round-robin.ts       ← Round-robin scoped por tenant_id com fallback global
-│   ├── routing-engine.ts    ← Engine de score de afinidade (filtra is_active=true)
-│   ├── email.ts             ← Templates Resend (inclui dados do contato)
-│   ├── evolution.ts         ← WhatsApp via Evolution API (inclui dados do contato)
+│   ├── auth.ts
+│   ├── navigation.ts
+│   ├── contact-ingestion.ts ← dedup + score + round-robin + notifySdrNewContact
+│   ├── round-robin.ts
+│   ├── routing-engine.ts
+│   ├── email.ts
+│   ├── evolution.ts
+│   ├── push.ts              ← sendToUser + notifySdrNewContact + notifyBrokerNewLead
 │   └── supabase/
-│       ├── client.ts
-│       ├── server.ts
-│       └── middleware.ts
-└── proxy.ts                 ← Auth middleware (Next.js 16)
+└── proxy.ts                 ← Middleware: exclui sw.js e manifest.json da auth
 ```
 
 ---
@@ -297,14 +383,17 @@ leads (contacts)     id, name, phone, email, tenant_id, stage, origin, status,
                      source_property_id, campaign_id, ad_name, adset_name, form_name,
                      quality_score, sdr_id, qualified_at, ...
 sdr_assignments      id, contact_id, sdr_id, assigned_at, status, qualified_at
-contact_messages     id, contact_id, sdr_id, channel, direction, content, sent_at, ack
-lead_assignments     id, contact_id (lead), broker_id, assigned_by_sdr_id, status, loss_reason
+contact_messages     id, contact_id, sdr_id, channel, direction, content, sent_at, ack,
+                     whatsapp_message_id, media_url, media_type
+lead_assignments     id, contact_id (lead), broker_id, assigned_by_sdr_id, status,
+                     loss_reason, archived, notes, updated_at
 lead_activities      id, lead_assignment_id, user_id, type, notes
 broker_preferences   id, broker_id, cities[], neighborhoods[], min_price, max_price, property_types[], creci
 tags                 id, name, color, tenant_id
 contact_tags         contact_id, tag_id
 company_channels     id, tenant_id, channel_type, is_active, config jsonb,
                      welcome_message, business_hours jsonb, after_hours_message, keywords[]
+push_subscriptions   id, user_id, endpoint, p256dh, auth, created_at
 ```
 
 ### Enums
@@ -347,12 +436,22 @@ Endpoint: `POST /api/leads/capture?token=<webhook_token_da_empresa>`
 
 ---
 
+## Evolution API — endpoints
+
+- `POST /instance/create` — body: `{ instanceName, integration, qrcode }` (sem campo webhook)
+- `POST /webhook/set/:instance` — body: `{ webhook: { enabled: true, url, byEvents, base64, events } }` (chave raiz `webhook` + `enabled` obrigatórios)
+- instanceName sempre `placego-${tenant.slug}` (nunca derivar do nome da empresa)
+- Webhook registrado separadamente após criar instância
+- Ao abrir página channels, `useEffect` registra webhook automaticamente
+
+---
+
 ## Comandos
 
 ```bash
 npm run dev          # Servidor de desenvolvimento
 npm run build        # Build de produção
-npm run db:push      # Aplicar schema (pode falhar com RLS — ver seção Drizzle)
+npm run db:push      # Aplicar schema (pode falhar com RLS — usar scripts manuais)
 npm run db:generate  # Gerar migrations
 npm run db:studio    # Drizzle Studio
 npm run db:seed      # Criar usuário admin inicial
@@ -375,6 +474,8 @@ NEXT_PUBLIC_APP_URL=               # https://placego-crm.vercel.app (homolog)
                                    # https://crm.placego.com.br (produção)
 EVOLUTION_API_URL=                 # URL da instância Evolution API
 EVOLUTION_API_KEY=                 # API key da Evolution API
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=      # Chave pública VAPID para Web Push
+VAPID_PRIVATE_KEY=                 # Chave privada VAPID (nunca expor no cliente)
 ```
 
 > **DATABASE_URL:** usar Transaction Pooler (`aws-*.pooler.supabase.com:6543`).
