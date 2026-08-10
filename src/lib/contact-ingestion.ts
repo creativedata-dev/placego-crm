@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { leads, contactMessages, sdrAssignments } from "@/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
+import { notifySdrNewContact } from "@/lib/push";
 
 interface IngestParams {
   name: string;
@@ -88,12 +89,17 @@ export async function ingestContactMessage(params: IngestParams) {
     mediaType: mediaType ?? null,
   });
 
-  await assignContactToNextSdr(contact.id, tenantId);
+  const assignedSdrId = await assignContactToNextSdr(contact.id, tenantId);
   // Marcar last_interaction_at no assignment recém criado
   await db
     .update(sdrAssignments)
     .set({ lastInteractionAt: new Date() })
     .where(eq(sdrAssignments.contactId, contact.id));
+
+  // Push notification para o SDR atribuído
+  if (assignedSdrId) {
+    notifySdrNewContact(assignedSdrId, name, origin).catch(() => {});
+  }
 
   return { contactId: contact.id, isNew: true };
 }

@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { sendLeadAssignedEmail } from "@/lib/email";
 import { wpNotifyBrokerNewLead } from "@/lib/whatsapp";
+import { notifyBrokerNewLead as pushNotifyBroker } from "@/lib/push";
 
 export async function assignLeadToBrokers(
   leadId: string,
@@ -86,6 +87,11 @@ export async function assignLeadToBrokers(
       };
     }
   }
+
+  // Push notification para cada corretor (independente do provedor WhatsApp)
+  brokers.forEach((broker) => {
+    pushNotifyBroker(broker.id, contact?.name ?? "Novo lead").catch(() => {});
+  });
 
   // Envia email + WhatsApp para cada corretor com dados do contato
   await Promise.allSettled([
