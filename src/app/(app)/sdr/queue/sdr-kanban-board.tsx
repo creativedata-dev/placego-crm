@@ -10,24 +10,24 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 
 // Tailwind classes precisam ser estáticas — mapa colId → bg tintado do card
 const COL_CARD_BG: Record<string, string> = {
-  novo:        "bg-blue-50   dark:bg-blue-950/30   border-blue-100   dark:border-blue-900",
-  em_contato:  "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900",
-  aguardando:  "bg-orange-50 dark:bg-orange-950/30 border-orange-100 dark:border-orange-900",
-  qualificado: "bg-green-50  dark:bg-green-950/30  border-green-100  dark:border-green-900",
-  distribuido: "bg-purple-50 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900",
-  invalido:    "bg-red-50    dark:bg-red-950/30    border-red-100    dark:border-red-900",
-  arquivado:   "bg-gray-50   dark:bg-gray-900/30   border-gray-200   dark:border-gray-800",
+  novo:        "bg-blue-100   dark:bg-blue-900/40   border-blue-200   dark:border-blue-800",
+  em_contato:  "bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-800",
+  aguardando:  "bg-orange-100 dark:bg-orange-900/40 border-orange-200 dark:border-orange-800",
+  qualificado: "bg-green-100  dark:bg-green-900/40  border-green-200  dark:border-green-800",
+  distribuido: "bg-purple-100 dark:bg-purple-900/40 border-purple-200 dark:border-purple-800",
+  invalido:    "bg-red-100    dark:bg-red-900/40    border-red-200    dark:border-red-800",
+  arquivado:   "bg-gray-100   dark:bg-gray-800/40   border-gray-300   dark:border-gray-700",
 };
 
-// Background da coluna — um tom mais escuro que os cards
+// Background da coluna — tom mais saturado que os cards
 const COL_BG: Record<string, string> = {
-  novo:        "bg-blue-100/60   dark:bg-blue-950/50",
-  em_contato:  "bg-yellow-100/60 dark:bg-yellow-950/50",
-  aguardando:  "bg-orange-100/60 dark:bg-orange-950/50",
-  qualificado: "bg-green-100/60  dark:bg-green-950/50",
-  distribuido: "bg-purple-100/60 dark:bg-purple-950/50",
-  invalido:    "bg-red-100/60    dark:bg-red-950/50",
-  arquivado:   "bg-gray-100/60   dark:bg-gray-900/50",
+  novo:        "bg-blue-200/70   dark:bg-blue-950/70",
+  em_contato:  "bg-yellow-200/70 dark:bg-yellow-950/70",
+  aguardando:  "bg-orange-200/70 dark:bg-orange-950/70",
+  qualificado: "bg-green-200/70  dark:bg-green-950/70",
+  distribuido: "bg-purple-200/70 dark:bg-purple-950/70",
+  invalido:    "bg-red-200/70    dark:bg-red-950/70",
+  arquivado:   "bg-gray-200/70   dark:bg-gray-900/70",
 };
 
 type CardData = {

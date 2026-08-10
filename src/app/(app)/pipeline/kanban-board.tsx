@@ -8,21 +8,21 @@ import type { LeadAssignment, Lead, Tag } from "@/db/schema";
 import { ChevronDown } from "lucide-react";
 
 const COL_CARD_BG: Record<string, string> = {
-  new:       "bg-blue-50   dark:bg-blue-950/30   border-blue-100   dark:border-blue-900",
-  contacted: "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900",
-  visiting:  "bg-purple-50 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900",
-  proposal:  "bg-orange-50 dark:bg-orange-950/30 border-orange-100 dark:border-orange-900",
-  won:       "bg-green-50  dark:bg-green-950/30  border-green-100  dark:border-green-900",
-  lost:      "bg-red-50    dark:bg-red-950/30    border-red-100    dark:border-red-900",
+  new:       "bg-blue-100   dark:bg-blue-900/40   border-blue-200   dark:border-blue-800",
+  contacted: "bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-800",
+  visiting:  "bg-purple-100 dark:bg-purple-900/40 border-purple-200 dark:border-purple-800",
+  proposal:  "bg-orange-100 dark:bg-orange-900/40 border-orange-200 dark:border-orange-800",
+  won:       "bg-green-100  dark:bg-green-900/40  border-green-200  dark:border-green-800",
+  lost:      "bg-red-100    dark:bg-red-900/40    border-red-200    dark:border-red-800",
 };
 
 const COL_BG: Record<string, string> = {
-  new:       "bg-blue-100/60   dark:bg-blue-950/50",
-  contacted: "bg-yellow-100/60 dark:bg-yellow-950/50",
-  visiting:  "bg-purple-100/60 dark:bg-purple-950/50",
-  proposal:  "bg-orange-100/60 dark:bg-orange-950/50",
-  won:       "bg-green-100/60  dark:bg-green-950/50",
-  lost:      "bg-red-100/60    dark:bg-red-950/50",
+  new:       "bg-blue-200/70   dark:bg-blue-950/70",
+  contacted: "bg-yellow-200/70 dark:bg-yellow-950/70",
+  visiting:  "bg-purple-200/70 dark:bg-purple-950/70",
+  proposal:  "bg-orange-200/70 dark:bg-orange-950/70",
+  won:       "bg-green-200/70  dark:bg-green-950/70",
+  lost:      "bg-red-200/70    dark:bg-red-950/70",
 };
 
 type ColumnData = {
