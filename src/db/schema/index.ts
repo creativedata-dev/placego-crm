@@ -6,3 +6,4 @@ export * from "./brokers";
 export * from "./channels";
 export * from "./tags";
 export * from "./push";
+export * from "./waba";

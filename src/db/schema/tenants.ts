@@ -18,6 +18,8 @@ export const tenants = pgTable("tenants", {
   metaPhoneNumberId: text("meta_phone_number_id"),
   metaAccessToken: text("meta_access_token"),
   metaWabaId: text("meta_waba_id"),
+  metaVerifyToken: text("meta_verify_token"),
+  metaOptoutKeywords: text("meta_optout_keywords").array(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
