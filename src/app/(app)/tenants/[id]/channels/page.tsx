@@ -65,6 +65,7 @@ export default async function CompanyChannelsPage({
           metaPhoneNumberId={tenant.metaPhoneNumberId ?? ""}
           metaAccessToken={tenant.metaAccessToken ?? ""}
           metaWabaId={tenant.metaWabaId ?? ""}
+          metaVerifyToken={tenant.metaVerifyToken ?? ""}
         />
         <MetaTutorial />
       </div>

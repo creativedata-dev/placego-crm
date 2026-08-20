@@ -35,6 +35,7 @@ export default async function TenantWhatsAppPage({
         metaPhoneNumberId={tenant.metaPhoneNumberId ?? ""}
         metaAccessToken={tenant.metaAccessToken ?? ""}
         metaWabaId={tenant.metaWabaId ?? ""}
+        metaVerifyToken={tenant.metaVerifyToken ?? ""}
       />
 
       {/* Tutorial Meta Cloud */}

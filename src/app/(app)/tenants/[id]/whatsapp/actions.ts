@@ -12,6 +12,7 @@ interface MetaCloudPayload {
   metaPhoneNumberId: string;
   metaAccessToken: string;
   metaWabaId: string;
+  metaVerifyToken?: string;
 }
 
 export async function saveMetaCloudConfig(
@@ -44,6 +45,7 @@ export async function saveMetaCloudConfig(
     metaPhoneNumberId: payload.provider === "meta_cloud" ? payload.metaPhoneNumberId || null : null,
     metaAccessToken: payload.provider === "meta_cloud" ? payload.metaAccessToken || null : null,
     metaWabaId: payload.provider === "meta_cloud" ? payload.metaWabaId || null : null,
+    metaVerifyToken: payload.metaVerifyToken || null,
     updatedAt: new Date(),
   }).where(eq(tenants.id, tenantId));
 

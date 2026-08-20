@@ -13,13 +13,15 @@ interface Props {
   metaPhoneNumberId: string;
   metaAccessToken: string;
   metaWabaId: string;
+  metaVerifyToken: string;
 }
 
-export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhoneNumberId, metaAccessToken, metaWabaId }: Props) {
+export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhoneNumberId, metaAccessToken, metaWabaId, metaVerifyToken }: Props) {
   const [provider, setProvider] = useState(initialProvider);
   const [phoneId, setPhoneId] = useState(metaPhoneNumberId);
   const [token, setToken] = useState(metaAccessToken);
   const [wabaId, setWabaId] = useState(metaWabaId);
+  const [verifyToken, setVerifyToken] = useState(metaVerifyToken);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -31,6 +33,7 @@ export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhone
         metaPhoneNumberId: phoneId,
         metaAccessToken: token,
         metaWabaId: wabaId,
+        metaVerifyToken: verifyToken,
       });
       setResult(res);
     });
@@ -138,7 +141,21 @@ export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhone
               placeholder="123456789012345"
               className={inputClass}
             />
-            <p className="text-xs text-muted-foreground">WhatsApp Business Account ID — para referência</p>
+            <p className="text-xs text-muted-foreground">WhatsApp Business Account ID — em WhatsApp → Configuration</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="verifyToken">Webhook Verify Token</Label>
+            <Input
+              id="verifyToken"
+              value={verifyToken}
+              onChange={(e) => setVerifyToken(e.target.value)}
+              placeholder="token-secreto-para-verificacao"
+              className={inputClass}
+            />
+            <p className="text-xs text-muted-foreground">
+              Token usado na verificação do webhook Meta. URL: <span className="font-mono">https://crm.placego.com.br/api/meta/webhook</span>
+            </p>
           </div>
         </div>
       )}
