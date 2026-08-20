@@ -5,13 +5,25 @@ config({ path: ".env.local" });
 const sql = postgres(process.env.DATABASE_URL!, { ssl: "require" });
 
 async function run() {
-  // Enums
-  await sql`CREATE TYPE IF NOT EXISTS waba_quality_rating AS ENUM ('GREEN', 'YELLOW', 'RED', 'UNKNOWN')`;
-  await sql`CREATE TYPE IF NOT EXISTS waba_tier AS ENUM ('TIER_1', 'TIER_2', 'TIER_3', 'TIER_4', 'UNLIMITED')`;
-  await sql`CREATE TYPE IF NOT EXISTS waba_account_mode AS ENUM ('SANDBOX', 'LIVE')`;
-  await sql`CREATE TYPE IF NOT EXISTS dispatch_status AS ENUM ('pending', 'sent', 'failed', 'blocked_optout', 'quota_exceeded')`;
-  await sql`CREATE TYPE IF NOT EXISTS optout_source AS ENUM ('keyword', 'api', 'import', 'manual')`;
-  await sql`CREATE TYPE IF NOT EXISTS automation_trigger AS ENUM ('contact_created', 'lead_distributed', 'reopen_conversation', 'sla_breach')`;
+  // Enums (PostgreSQL não suporta CREATE TYPE IF NOT EXISTS — usa DO block)
+  await sql`DO $$ BEGIN
+    CREATE TYPE waba_quality_rating AS ENUM ('GREEN', 'YELLOW', 'RED', 'UNKNOWN');
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$`;
+  await sql`DO $$ BEGIN
+    CREATE TYPE waba_tier AS ENUM ('TIER_1', 'TIER_2', 'TIER_3', 'TIER_4', 'UNLIMITED');
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$`;
+  await sql`DO $$ BEGIN
+    CREATE TYPE waba_account_mode AS ENUM ('SANDBOX', 'LIVE');
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$`;
+  await sql`DO $$ BEGIN
+    CREATE TYPE dispatch_status AS ENUM ('pending', 'sent', 'failed', 'blocked_optout', 'quota_exceeded');
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$`;
+  await sql`DO $$ BEGIN
+    CREATE TYPE optout_source AS ENUM ('keyword', 'api', 'import', 'manual');
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$`;
+  await sql`DO $$ BEGIN
+    CREATE TYPE automation_trigger AS ENUM ('contact_created', 'lead_distributed', 'reopen_conversation', 'sla_breach');
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$`;
 
   // waba_health_log
   await sql`
