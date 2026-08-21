@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { companyChannels, tenants, contactMessages, contactOptouts, users, leadAssignments, sdrAssignments, leads, developments, properties } from "@/db/schema";
-import { eq, and, or, isNull, desc } from "drizzle-orm";
+import { eq, and, or, isNull, desc, sql } from "drizzle-orm";
 import { ingestContactMessage } from "@/lib/contact-ingestion";
 import { markAsRead } from "@/lib/meta-waba";
 import { metaSendLeadDetails } from "@/lib/meta-cloud";
@@ -215,21 +215,21 @@ async function handleWabaMessage(
   if (optout) return;
 
   // Verifica se o remetente é um corretor que respondeu ao template de lead
+  // fromPhone vem do Meta como só dígitos (ex: 5511999998888)
+  // users.phone pode estar formatado (ex: (11) 99999-8888) — normalizamos no SQL
   const normalizedFrom = fromPhone.replace(/\D/g, "");
-  const phoneVariants = [
-    fromPhone,
-    normalizedFrom,
-    normalizedFrom.replace(/^55/, ""),
-    // com hífen/espaço como pode estar salvo manualmente
-    normalizedFrom.replace(/^55(\d{2})(\d{4,5})(\d{4})$/, "$1 $2-$3"),
-  ];
-  console.log(`[waba] mensagem de ${fromPhone} | tipo=${msg.type} | text=${text?.slice(0, 50)}`);
+  // Sufixos para match: com 55, sem 55, sem 55 e sem 9 extra (fixo)
+  const digitsNoCountry = normalizedFrom.replace(/^55/, "");
+  const digitsNoNinth = digitsNoCountry.length === 11 ? digitsNoCountry.slice(0, 2) + digitsNoCountry.slice(3) : null;
 
+  console.log(`[waba] mensagem de ${fromPhone} | normalizado=${normalizedFrom} | tipo=${msg.type} | text=${text?.slice(0, 50)}`);
+
+  // Busca corretor comparando só os dígitos do phone salvo no banco
   const [brokerUser] = await db
     .select({ id: users.id, name: users.name, phone: users.phone, role: users.role })
     .from(users)
     .where(
-      or(...phoneVariants.map((p) => eq(users.phone, p)))
+      sql`regexp_replace(${users.phone}, '[^0-9]', '', 'g') IN (${normalizedFrom}, ${digitsNoCountry}${digitsNoNinth ? sql`, ${digitsNoNinth}` : sql``})`
     )
     .limit(1);
 
