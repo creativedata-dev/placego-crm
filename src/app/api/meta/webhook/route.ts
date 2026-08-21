@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { companyChannels, tenants, contactMessages, contactOptouts } from "@/db/schema";
-import { eq, and, or, isNull } from "drizzle-orm";
+import { companyChannels, tenants, contactMessages, contactOptouts, users, leadAssignments, leads, developments, properties } from "@/db/schema";
+import { eq, and, or, isNull, desc } from "drizzle-orm";
 import { ingestContactMessage } from "@/lib/contact-ingestion";
 import { markAsRead } from "@/lib/meta-waba";
+import { metaSendLeadDetails } from "@/lib/meta-cloud";
 
 // Webhook unificado do Meta para o app PlaceGo CRM (ID: 1689147582125041)
 // Recebe: messages (Instagram DM, Facebook Messenger) e feed (comentários)
@@ -212,6 +213,98 @@ async function handleWabaMessage(
     ))
     .limit(1);
   if (optout) return;
+
+  // Verifica se o remetente é um corretor que respondeu ao template de lead
+  const normalizedFrom = fromPhone.replace(/\D/g, "");
+  const [brokerUser] = await db
+    .select({ id: users.id, name: users.name, phone: users.phone })
+    .from(users)
+    .where(
+      or(
+        eq(users.phone, fromPhone),
+        eq(users.phone, normalizedFrom),
+        eq(users.phone, normalizedFrom.replace(/^55/, "")),
+      )
+    )
+    .limit(1);
+
+  if (brokerUser) {
+    const isPodeSim = normalized.replace(/[^A-Z]/g, " ").trim() === "PODE SIM" ||
+      normalized.includes("PODE SIM");
+
+    if (isPodeSim && tenant.metaPhoneNumberId && tenant.metaAccessToken) {
+      // Busca o lead assignment mais recente desse corretor (status new ou contacted)
+      const [assignment] = await db
+        .select({
+          id: leadAssignments.id,
+          leadId: leadAssignments.leadId,
+          notes: leadAssignments.notes,
+        })
+        .from(leadAssignments)
+        .where(
+          and(
+            eq(leadAssignments.brokerId, brokerUser.id),
+            or(
+              eq(leadAssignments.status, "new"),
+              eq(leadAssignments.status, "contacted"),
+            )
+          )
+        )
+        .orderBy(desc(leadAssignments.assignedAt))
+        .limit(1);
+
+      if (assignment) {
+        const [contact] = await db
+          .select({
+            name: leads.name,
+            phone: leads.phone,
+            email: leads.email,
+            createdAt: leads.createdAt,
+            sourceDevelopmentId: leads.sourceDevelopmentId,
+            sourcePropertyId: leads.sourcePropertyId,
+          })
+          .from(leads)
+          .where(eq(leads.id, assignment.leadId))
+          .limit(1);
+
+        let developmentName: string | null = null;
+        if (contact?.sourceDevelopmentId) {
+          const [dev] = await db
+            .select({ name: developments.name })
+            .from(developments)
+            .where(eq(developments.id, contact.sourceDevelopmentId))
+            .limit(1);
+          developmentName = dev?.name ?? null;
+        } else if (contact?.sourcePropertyId) {
+          const [prop] = await db
+            .select({ address: properties.address })
+            .from(properties)
+            .where(eq(properties.id, contact.sourcePropertyId))
+            .limit(1);
+          developmentName = prop?.address ?? null;
+        }
+
+        if (contact) {
+          await metaSendLeadDetails(
+            { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
+            fromPhone,
+            brokerUser.name ?? "",
+            {
+              name: contact.name ?? "",
+              phone: contact.phone,
+              email: contact.email,
+              development: developmentName,
+              createdAt: contact.createdAt,
+              assignmentId: assignment.id,
+              notes: assignment.notes,
+            }
+          ).catch((err) => console.error("[waba] erro ao enviar detalhes do lead:", err));
+        }
+      }
+      return; // não ingesta a resposta do corretor como contato
+    }
+    return; // ignora outras mensagens de corretores
+  }
 
   const contactName = metaContact?.profile?.name ?? fromPhone;
 

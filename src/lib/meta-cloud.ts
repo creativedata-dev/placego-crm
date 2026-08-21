@@ -77,6 +77,7 @@ export async function metaSendMedia(
   );
 }
 
+// Primeiro contato: template de aviso (pede confirmação antes de enviar dados)
 export async function metaNotifyBrokerNewLead(
   config: MetaCloudConfig,
   brokerPhone: string,
@@ -86,20 +87,61 @@ export async function metaNotifyBrokerNewLead(
   contactEmail?: string | null,
   notes?: string | null
 ) {
+  return metaFetch(
+    `/${config.phoneNumberId}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to: normalizePhone(brokerPhone),
+      type: "template",
+      template: {
+        name: "template_envio_de_lead",
+        language: { code: "pt_BR" },
+        components: [
+          {
+            type: "body",
+            parameters: [{ type: "text", text: brokerName }],
+          },
+        ],
+      },
+    },
+    config.accessToken
+  );
+}
+
+// Segundo contato: dados completos do lead (enviado após corretor confirmar)
+export async function metaSendLeadDetails(
+  config: MetaCloudConfig,
+  brokerPhone: string,
+  brokerName: string,
+  lead: {
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    development?: string | null;
+    createdAt?: Date | null;
+    assignmentId?: string | null;
+    notes?: string | null;
+  }
+) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.placego.com.br";
+  const link = lead.assignmentId ? `${appUrl}/pipeline/${lead.assignmentId}` : `${appUrl}/pipeline`;
+  const date = lead.createdAt
+    ? new Date(lead.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : "—";
 
-  const details = [
-    contactPhone ? `📱 ${contactPhone}` : null,
-    contactEmail ? `✉️ ${contactEmail}` : null,
-    notes ? `📝 ${notes}` : null,
-  ].filter(Boolean).join("\n");
-
-  const text =
-    `🏠 *PlaceGo CRM — Novo lead para você!*\n\n` +
-    `Olá, *${brokerName}*!\n\n` +
-    `Você recebeu o lead *${contactName}*:\n` +
-    (details ? `${details}\n\n` : "\n") +
-    `Acesse o CRM para iniciar o atendimento:\n${appUrl}/pipeline`;
+  const text = [
+    `🏠 *Dados do lead — PlaceGo CRM*`,
+    ``,
+    `👤 *Nome:* ${lead.name}`,
+    lead.phone ? `📱 *WhatsApp:* ${lead.phone}` : null,
+    lead.email ? `✉️ *E-mail:* ${lead.email}` : null,
+    lead.development ? `🏢 *Empreendimento:* ${lead.development}` : null,
+    `📅 *Chegou em:* ${date}`,
+    lead.notes ? `📝 *Obs:* ${lead.notes}` : null,
+    ``,
+    `🔗 *Acesse o CRM:*`,
+    link,
+  ].filter((l) => l !== null).join("\n");
 
   return metaSendText(config, brokerPhone, text);
 }
