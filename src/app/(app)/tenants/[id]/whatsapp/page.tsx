@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { WhatsAppManager } from "./whatsapp-manager";
 import { MetaCloudConfig } from "./meta-cloud-config";
 import { MetaTutorial } from "./meta-tutorial";
+import { WabaHealth } from "./waba-health";
 
 export default async function TenantWhatsAppPage({
   params,
@@ -37,6 +38,11 @@ export default async function TenantWhatsAppPage({
         metaWabaId={tenant.metaWabaId ?? ""}
         metaVerifyToken={tenant.metaVerifyToken ?? ""}
       />
+
+      {/* Saúde do número WABA — só exibe se Meta Cloud ativo e configurado */}
+      {provider === "meta_cloud" && tenant.metaPhoneNumberId && tenant.metaAccessToken && (
+        <WabaHealth tenantId={id} />
+      )}
 
       {/* Tutorial Meta Cloud */}
       <MetaTutorial />
