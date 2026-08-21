@@ -16,6 +16,7 @@ import {
   ContactRound,
   Plug,
   Wifi,
+  Bug,
   LogOut,
   Bell,
 } from "lucide-react";
@@ -51,6 +52,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   ContactRound,
   Plug,
   Wifi,
+  Bug,
 };
 
 interface AppSidebarProps {
