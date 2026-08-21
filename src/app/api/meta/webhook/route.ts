@@ -229,8 +229,10 @@ async function handleWabaMessage(
     .limit(1);
 
   if (brokerUser) {
-    const isPodeSim = normalized.replace(/[^A-Z]/g, " ").trim() === "PODE SIM" ||
-      normalized.includes("PODE SIM");
+    // Detecta clique no botão "Pode sim!" (button_reply) ou texto equivalente
+    const isPodeSim = msg.type === "interactive"
+      ? (msg.interactive?.button_reply?.title ?? "").toLowerCase().includes("pode sim")
+      : normalized.includes("PODE SIM");
 
     if (isPodeSim && tenant.metaPhoneNumberId && tenant.metaAccessToken) {
       // Busca o lead assignment mais recente desse corretor (status new ou contacted)
@@ -379,6 +381,13 @@ async function handleWabaMessage(
 function extractWabaText(msg: any): string | null {
   switch (msg.type) {
     case "text": return msg.text?.body ?? null;
+    // Resposta de botão de template (quick reply) — ex: "Pode sim!"
+    case "interactive": {
+      const t = msg.interactive?.type;
+      if (t === "button_reply") return msg.interactive.button_reply?.title ?? null;
+      if (t === "list_reply") return msg.interactive.list_reply?.title ?? null;
+      return null;
+    }
     case "image": return `📷 Imagem${msg.image?.caption ? `: ${msg.image.caption}` : ""}`;
     case "audio":
     case "voice": return "🎵 Áudio";
