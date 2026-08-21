@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tutorial: Meta Cloud API — PlaceGo CRM</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      color: #1a1a1a;
+      background: #fff;
+      line-height: 1.5;
+    }
+
+    /* ── Capa ── */
+    .cover {
+      page-break-after: always;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 60px 40px;
+      background: linear-gradient(160deg, #18181b 0%, #27272a 60%, #1e3a5f 100%);
+      color: #fff;
+    }
+
+    .cover-logo {
+      font-size: 48px;
+      margin-bottom: 24px;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: #2563eb;
+      color: #fff;
+      font-size: 9pt;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+
+    .cover h1 {
+      font-size: 30pt;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    .cover h1 span {
+      color: #60a5fa;
+    }
+
+    .cover p {
+      font-size: 13pt;
+      color: #a1a1aa;
+      max-width: 520px;
+      margin: 0 auto 32px;
+    }
+
+    .cover-meta {
+      border-top: 1px solid #3f3f46;
+      padding-top: 24px;
+      font-size: 9pt;
+      color: #71717a;
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+    }
+
+    .cover-meta span { display: flex; align-items: center; gap: 6px; }
+
+    /* ── Layout geral ── */
+    .page {
+      padding: 40px 48px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* ── Cabeçalho de seção ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e4e4e7;
+    }
+
+    .section-header .icon { font-size: 22px; }
+
+    .section-header h2 {
+      font-size: 16pt;
+      font-weight: 700;
+      color: #18181b;
+    }
+
+    /* ── Aviso inicial ── */
+    .alert {
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 28px;
+      display: flex;
+      gap: 12px;
+      font-size: 10pt;
+    }
+
+    .alert-warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+    }
+
+    .alert-info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+    }
+
+    .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    .alert strong { display: block; font-size: 10.5pt; margin-bottom: 6px; }
+
+    .alert ul { padding-left: 16px; }
+    .alert li { margin-bottom: 3px; }
+
+    /* ── Steps ── */
+    .step {
+      margin-bottom: 28px;
+      border: 1px solid #e4e4e7;
+      border-radius: 12px;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      background: #f4f4f5;
+      border-bottom: 1px solid #e4e4e7;
+    }
+
+    .step-number {
+      font-size: 10pt;
+      font-weight: 900;
+      color: #a1a1aa;
+      width: 28px;
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      flex: 1;
+      font-size: 11.5pt;
+      font-weight: 700;
+      color: #18181b;
+    }
+
+    .step-time {
+      font-size: 9pt;
+      color: #71717a;
+      background: #e4e4e7;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    .step-body {
+      padding: 16px 20px;
+      background: #fff;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .step-item:last-child { margin-bottom: 0; }
+
+    .step-check {
+      color: #10b981;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-content { flex: 1; }
+
+    .step-text {
+      font-size: 10.5pt;
+      color: #27272a;
+      margin-bottom: 4px;
+    }
+
+    .step-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9pt;
+      color: #2563eb;
+      text-decoration: none;
+      margin-bottom: 4px;
+    }
+
+    .tip {
+      background: #eff6ff;
+      border-left: 3px solid #3b82f6;
+      border-radius: 0 6px 6px 0;
+      padding: 6px 10px;
+      font-size: 9.5pt;
+      color: #1d4ed8;
+      margin-top: 5px;
+    }
+
+    .warning {
+      background: #fffbeb;
+      border-left: 3px solid #f59e0b;
+      border-radius: 0 6px 6px 0;
+      padding: 6px 10px;
+      font-size: 9.5pt;
+      color: #92400e;
+      margin-top: 5px;
+    }
+
+    .tip::before { content: "💡 "; }
+    .warning::before { content: "⚠️ "; }
+
+    /* ── Limites de envio ── */
+    .limits-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .limit-card {
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .limit-label { font-size: 9pt; color: #71717a; font-weight: 600; margin-bottom: 4px; }
+    .limit-value { font-size: 12pt; font-weight: 800; }
+    .limit-tier1 { color: #d97706; }
+    .limit-tier2 { color: #2563eb; }
+    .limit-tier3 { color: #16a34a; }
+    .limit-unlimited { color: #059669; }
+
+    /* ── FAQ ── */
+    .faq-item {
+      border-bottom: 1px solid #f4f4f5;
+      padding: 12px 0;
+      page-break-inside: avoid;
+    }
+
+    .faq-item:last-child { border-bottom: none; }
+
+    .faq-q {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #18181b;
+      margin-bottom: 5px;
+    }
+
+    .faq-a {
+      font-size: 10pt;
+      color: #52525b;
+      padding-left: 14px;
+    }
+
+    /* ── Rodapé ── */
+    footer {
+      margin-top: 40px;
+      padding-top: 14px;
+      border-top: 1px solid #e4e4e7;
+      font-size: 8.5pt;
+      color: #a1a1aa;
+      text-align: center;
+    }
+
+    /* ── Quebras de página ── */
+    .page-break { page-break-before: always; }
+
+    /* ── Print ── */
+    @media print {
+      body { font-size: 10pt; }
+      .cover { min-height: 100vh; }
+      .no-print { display: none; }
+
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+    }
+
+    /* ── Botão imprimir (só tela) ── */
+    .print-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 12px 24px;
+      font-size: 11pt;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+      transition: background 0.15s;
+    }
+    .print-btn:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+
+<!-- ── CAPA ── -->
+<div class="cover">
+  <div class="cover-logo">🏠</div>
+  <div class="cover-badge">PlaceGo CRM</div>
+  <h1>Como configurar a<br /><span>Meta Cloud API</span></h1>
+  <p>Passo a passo para cadastrar um número do WhatsApp Business no Meta Business Manager e integrar com o CRM.</p>
+  <div class="cover-meta">
+    <span>⏱ ~45 minutos no total</span>
+    <span>📋 7 etapas</span>
+    <span>🔒 API oficial Meta</span>
+  </div>
+</div>
+
+<!-- ── PÁGINA 1: Introdução + Steps 01–03 ── -->
+<div class="page">
+
+  <div class="section-header">
+    <span class="icon">📋</span>
+    <h2>Configuração da Meta Cloud API</h2>
+  </div>
+
+  <div class="alert alert-warning">
+    <span class="alert-icon">⚠️</span>
+    <div>
+      <strong>Antes de começar</strong>
+      <ul>
+        <li>O número <strong>não pode</strong> estar ativo no WhatsApp App ou WhatsApp Business App — a conta precisa ser deletada primeiro</li>
+        <li>Você vai precisar de acesso ao telefone para receber o código de verificação por SMS ou ligação</li>
+        <li>Tempo total estimado: <strong>~45 minutos</strong> na primeira vez</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Step 01 -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-number">01</span>
+      <span class="step-title">Criar conta no Meta Business Manager</span>
+      <span class="step-time">~5 min</span>
+    </div>
+    <div class="step-body">
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Acesse business.facebook.com e clique em "Criar conta"</p>
+          <a class="step-link" href="https://business.facebook.com">🔗 business.facebook.com</a>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Preencha o nome da empresa, seu nome e email comercial</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Confirme o email — você receberá um link de verificação</p>
+          <div class="warning">Use um email da empresa, não pessoal. Ele será o administrador principal.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Na primeira tela, ignore a sugestão de criar anúncios — vá direto em Configurações</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 02 -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-number">02</span>
+      <span class="step-title">Criar um App no Meta for Developers</span>
+      <span class="step-time">~10 min</span>
+    </div>
+    <div class="step-body">
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Acesse developers.facebook.com com a mesma conta Facebook do administrador do Business Manager</p>
+          <a class="step-link" href="https://developers.facebook.com/apps">🔗 developers.facebook.com/apps</a>
+          <div class="tip">Você precisa estar logado com a conta Facebook pessoal do administrador — não uma conta de empresa.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">No canto superior direito, clique em "Meus apps" → "Criar app"</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Na pergunta "Para que serve o seu app?", selecione "Outro" → clique em Próximo</p>
+          <div class="tip">A opção "Business" foi renomeada para fluxo diferente em versões recentes do portal. Selecione "Outro" para ter acesso ao produto WhatsApp Business.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Em "Selecionar um tipo de app", escolha "Business" → clique em Próximo</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Preencha o nome do app (ex: "PlaceGo CRM" ou o nome da imobiliária) e informe um email de contato</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Em "Conta Business", selecione o Business Manager criado no passo 01 — clique em "Criar app"</p>
+          <div class="warning">Se a conta Business não aparecer na lista, significa que o Business Manager ainda não foi verificado ou o usuário não tem acesso de administrador.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Na tela de produtos do app, role até encontrar "WhatsApp" e clique em "Configurar"</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Confirme novamente o Business Manager quando solicitado → clique em "Continuar"</p>
+          <div class="tip">Isso vincula o app à conta WABA (WhatsApp Business Account) da empresa e libera o acesso à Cloud API.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 03 -->
+  <div class="step page-break">
+    <div class="step-header">
+      <span class="step-number">03</span>
+      <span class="step-title">Adicionar e verificar o número de telefone</span>
+      <span class="step-time">~15 min</span>
+    </div>
+    <div class="step-body">
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Dentro do app, vá em WhatsApp → "Configuração da API"</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Em "Números de telefone", clique em "Adicionar número de telefone"</p>
+          <div class="warning">O número NÃO pode estar registrado no WhatsApp App ou WhatsApp Business App. Se estiver, você precisa deletar a conta antes.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Preencha: nome de exibição da empresa, categoria (ex: Imóveis), e o número com DDD e DDI (+55)</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Escolha a verificação por SMS ou ligação — insira o código recebido</p>
+          <div class="tip">Chips virtuais (Vivo, Claro virtual) funcionam. Evite VOIP — pode não receber o código.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Após verificar, o número aparece na lista com status "Conectado"</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 04 -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-number">04</span>
+      <span class="step-title">Copiar o Phone Number ID</span>
+      <span class="step-time">~2 min</span>
+    </div>
+    <div class="step-body">
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Ainda em WhatsApp → "Configuração da API", localize a seção "Enviar e receber mensagens"</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">No campo "De", selecione o número que você acabou de verificar</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Abaixo aparece o campo "ID do número de telefone" — copie esse valor (são ~15 dígitos)</p>
+          <div class="tip">Exemplo: 123456789012345 — este é o valor que vai no campo Phone Number ID do PlaceGo CRM.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 05 -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-number">05</span>
+      <span class="step-title">Criar um System User e gerar o Access Token permanente</span>
+      <span class="step-time">~10 min</span>
+    </div>
+    <div class="step-body">
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Volte ao Business Manager → menu lateral → "Usuários do sistema"</p>
+          <a class="step-link" href="https://business.facebook.com/settings/system-users">🔗 Abrir Usuários do sistema</a>
+          <div class="warning">Não use o token temporário da tela de API Setup — ele expira em 24h e quebrará o CRM.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Clique em "Adicionar" → dê um nome (ex: PlaceGo CRM Bot) → perfil: "Administrador" → Criar usuário do sistema</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Com o usuário criado, clique em "Gerar novo token"</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Selecione o App criado no passo 02</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Marque as permissões: <strong>whatsapp_business_messaging</strong> e <strong>whatsapp_business_management</strong> → clique em "Gerar token"</p>
+          <div class="tip">Marque "Token nunca expira" se disponível — caso contrário, anote a data e renove antes do vencimento.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Copie o token gerado (começa com <strong>EAA...</strong>) — ele não será exibido novamente</p>
+          <div class="warning">Salve o token em local seguro imediatamente. Ao fechar a janela, ele some.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 06 -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-number">06</span>
+      <span class="step-title">Conceder acesso ao App para o System User</span>
+      <span class="step-time">~5 min</span>
+    </div>
+    <div class="step-body">
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Ainda nos Usuários do sistema, selecione o usuário criado → clique em "Conceder acesso a recursos"</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Selecione "Apps" → escolha o app do passo 02 → marque todas as permissões → Salvar</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Depois vá em "Apps" no menu lateral → selecione o seu app → Adicionar pessoas → adicione o System User como administrador</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 07 -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-number">07</span>
+      <span class="step-title">Configurar no PlaceGo CRM</span>
+      <span class="step-time">~2 min</span>
+    </div>
+    <div class="step-body">
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Nesta página, selecione "Meta Cloud API" no seletor de provedor acima</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Cole o <strong>Phone Number ID</strong> (passo 04) no campo correspondente</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Cole o <strong>Access Token</strong> (passo 05) no campo correspondente</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text">Clique em "Salvar configuração" — o sistema valida as credenciais automaticamente</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-check">✓</span>
+        <div class="step-content">
+          <p class="step-text"><strong>Pronto!</strong> Os corretores desta empresa passarão a receber notificações de novos leads pela API oficial do Meta</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Limites de envio -->
+  <div class="page-break" style="margin-top: 36px;">
+    <div class="section-header">
+      <span class="icon">📊</span>
+      <h2>Limites de envio da Meta Cloud API</h2>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">ℹ️</span>
+      <div>Os limites sobem automaticamente conforme o uso — sem necessidade de solicitação manual. Para notificações de corretores, o Tier 1 (1.000/dia) é suficiente para a grande maioria dos cenários.</div>
+    </div>
+
+    <div class="limits-grid">
+      <div class="limit-card">
+        <div class="limit-label">Tier 1 (padrão)</div>
+        <div class="limit-value limit-tier1">1.000 conversas/dia</div>
+      </div>
+      <div class="limit-card">
+        <div class="limit-label">Tier 2</div>
+        <div class="limit-value limit-tier2">10.000 conversas/dia</div>
+      </div>
+      <div class="limit-card">
+        <div class="limit-label">Tier 3</div>
+        <div class="limit-value limit-tier3">100.000 conversas/dia</div>
+      </div>
+      <div class="limit-card">
+        <div class="limit-label">Ilimitado</div>
+        <div class="limit-value limit-unlimited">Após verificação da empresa</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div style="margin-top: 40px;">
+    <div class="section-header">
+      <span class="icon">❓</span>
+      <h2>Dúvidas frequentes</h2>
+    </div>
+
+    <div class="faq-item">
+      <p class="faq-q">Posso usar o número atual do WhatsApp Business?</p>
+      <p class="faq-a">Não diretamente. Você precisa primeiro remover a conta do WhatsApp Business App: Configurações → Conta → Excluir minha conta. Só então o número fica disponível para a API oficial.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">O número precisa ter chip físico?</p>
+      <p class="faq-a">Não. Chips virtuais (e-SIM, Vivo Easy Virtual, etc.) funcionam para receber o SMS de verificação. Após verificado, o chip não precisa mais estar ativo — o número fica na nuvem do Meta.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Quanto custa?</p>
+      <p class="faq-a">A Meta cobra por conversa (janela de 24h). As primeiras 1.000 conversas de negócio por mês são gratuitas. Acima disso, o preço varia por país (Brasil: aprox. USD 0,075–0,125/conversa).</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">O token expira?</p>
+      <p class="faq-a">Tokens de System User podem ser gerados sem expiração. Tokens de usuário comum expiram em 60 dias. Use sempre System User Token para integrações de produção.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">O que acontece se o token for revogado?</p>
+      <p class="faq-a">As notificações param de ser enviadas silenciosamente (o CRM registra o erro nos logs). Basta gerar um novo token e atualizar na página de configuração.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Precisa de conta de anúncios para criar o app?</p>
+      <p class="faq-a">Não. A conta de anúncios (Facebook Ads) serve apenas para campanhas pagas. A Cloud API do WhatsApp é gerenciada pelo Business Manager — a imobiliária pode não ter nenhum anúncio ativo e ainda assim usar a API.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Com qual conta Facebook devo acessar o developers.facebook.com?</p>
+      <p class="faq-a">Com a conta pessoal do Facebook do administrador do Business Manager. Não existe "conta Facebook de empresa" — o portal de desenvolvedores usa sua conta pessoal, mas tudo fica vinculado ao Business Manager da empresa.</p>
+    </div>
+  </div>
+
+  <footer>
+    PlaceGo CRM &nbsp;·&nbsp; Tutorial Meta Cloud API &nbsp;·&nbsp; crm.placego.com.br
+  </footer>
+
+</div>
+
+<!-- Botão imprimir (só aparece na tela) -->
+<button class="print-btn no-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+
+</body>
+</html>

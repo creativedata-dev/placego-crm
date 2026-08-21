@@ -169,6 +169,12 @@ async function handleWabaStatus(status: any) {
   await db.update(contactMessages).set({ ack }).where(eq(contactMessages.whatsappMessageId, status.id)).catch(() => {});
 }
 
+async function dblog(step: string, data: object) {
+  try {
+    await db.execute(sql`INSERT INTO webhook_debug_logs (step, data) VALUES (${step}, ${JSON.stringify(data)}::jsonb)`);
+  } catch { /* ignora erros de log */ }
+}
+
 async function handleWabaMessage(
   msg: any,
   metaContact: any,
@@ -178,11 +184,14 @@ async function handleWabaMessage(
   const fromPhone = msg.from;
   const messageId = msg.id;
 
+  await dblog("1_received", { fromPhone, type: msg.type, phoneNumberId, tenantName: tenant.name });
+
   if (tenant.metaAccessToken) {
     markAsRead(phoneNumberId, tenant.metaAccessToken, messageId).catch(() => {});
   }
 
   const text = extractWabaText(msg);
+  await dblog("2_text", { text, msgRaw: JSON.stringify(msg).slice(0, 500) });
   if (!text) return;
 
   // Opt-out por palavra-chave
@@ -222,7 +231,7 @@ async function handleWabaMessage(
   const digitsNoCountry = normalizedFrom.replace(/^55/, "");
   const digitsNoNinth = digitsNoCountry.length === 11 ? digitsNoCountry.slice(0, 2) + digitsNoCountry.slice(3) : null;
 
-  console.log(`[waba] mensagem de ${fromPhone} | normalizado=${normalizedFrom} | tipo=${msg.type} | text=${text?.slice(0, 50)}`);
+  await dblog("3_phone", { fromPhone, normalizedFrom, digitsNoCountry, digitsNoNinth });
 
   // Busca corretor comparando só os dígitos do phone salvo no banco
   const [brokerUser] = await db
@@ -233,7 +242,7 @@ async function handleWabaMessage(
     )
     .limit(1);
 
-  console.log(`[waba] brokerUser encontrado:`, brokerUser ? `${brokerUser.name} (${brokerUser.role})` : "nenhum");
+  await dblog("4_broker", { brokerUser: brokerUser ? { id: brokerUser.id, name: brokerUser.name, phone: brokerUser.phone } : null });
 
   if (brokerUser) {
     // Detecta clique no botão "Pode sim!" (button_reply) ou texto equivalente
@@ -241,7 +250,7 @@ async function handleWabaMessage(
       ? (msg.interactive?.button_reply?.title ?? "").toLowerCase().includes("pode sim")
       : normalized.includes("PODE SIM");
 
-    console.log(`[waba] isPodeSim=${isPodeSim} | metaPhone=${tenant.metaPhoneNumberId ? "ok" : "missing"}`);
+    await dblog("5_isPodeSim", { isPodeSim, msgType: msg.type, interactiveType: msg.interactive?.type, buttonTitle: msg.interactive?.button_reply?.title, metaPhoneOk: !!tenant.metaPhoneNumberId });
 
     if (isPodeSim && tenant.metaPhoneNumberId && tenant.metaAccessToken) {
       // Busca o lead assignment mais recente desse corretor (qualquer status exceto arquivado)
@@ -257,7 +266,7 @@ async function handleWabaMessage(
         .orderBy(desc(leadAssignments.assignedAt))
         .limit(1);
 
-      console.log(`[waba] assignment encontrado:`, assignment ? `id=${assignment.id} status=${assignment.status}` : "nenhum");
+      await dblog("6_assignment", { assignment: assignment ? { id: assignment.id, status: assignment.status, leadId: assignment.leadId } : null });
 
       if (assignment) {
         const [contact] = await db
@@ -290,9 +299,9 @@ async function handleWabaMessage(
           developmentName = prop?.address ?? null;
         }
 
-        console.log(`[waba] contact encontrado:`, contact ? contact.name : "nenhum");
+        await dblog("7_contact", { contact: contact ? { name: contact.name, phone: contact.phone } : null });
         if (contact) {
-          console.log(`[waba] enviando metaSendLeadDetails para ${fromPhone}`);
+          await dblog("8_sending", { to: fromPhone, brokerName: brokerUser.name });
           await metaSendLeadDetails(
             { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
             fromPhone,
@@ -306,8 +315,7 @@ async function handleWabaMessage(
               assignmentId: assignment.id,
               notes: assignment.notes,
             }
-          ).catch((err) => console.error("[waba] erro ao enviar detalhes do lead:", err));
-          console.log(`[waba] metaSendLeadDetails enviado`);
+          ).then(() => dblog("9_sent_ok", { to: fromPhone })).catch((err) => dblog("9_sent_error", { error: String(err) }));
         }
       }
       return; // não ingesta a resposta do corretor como contato
