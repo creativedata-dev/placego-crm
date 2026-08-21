@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { contactMessages } from "@/db/schema";
+import { contactMessages, tenants } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { sendText, sendMedia, sendAudio } from "@/lib/evolution";
+import { metaSendText, metaSendMedia } from "@/lib/meta-cloud";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
@@ -46,20 +48,46 @@ interface SendMessageParams {
   email: string | null;
   name: string;
   instanceName: string | null;
+  tenantId?: string | null;
+}
+
+async function getTenantWabaConfig(tenantId: string) {
+  const [t] = await db
+    .select({ provider: tenants.whatsappProvider, phoneNumberId: tenants.metaPhoneNumberId, accessToken: tenants.metaAccessToken })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1);
+  return t ?? null;
 }
 
 export async function sendContactMessage(params: SendMessageParams) {
   const user = await requireRole(["sdr", "admin_placego", "corretor", "corretor_tenant"]);
-  const { contactId, channel, content, phone, email, name, instanceName } = params;
+  const { contactId, channel, content, phone, email, name, instanceName, tenantId } = params;
 
   try {
     let whatsappMessageId: string | null = null;
 
     if (channel === "whatsapp") {
       if (!phone) return { error: "Telefone não cadastrado" };
-      if (!instanceName) return { error: "WhatsApp não configurado para esta empresa" };
-      const result = await sendText(instanceName, phone, content);
-      whatsappMessageId = result?.key?.id ?? null;
+
+      // Detectar provider: Meta Cloud API ou Evolution
+      const wabaConfig = tenantId ? await getTenantWabaConfig(tenantId) : null;
+
+      if (wabaConfig?.provider === "meta_cloud") {
+        if (!wabaConfig.phoneNumberId || !wabaConfig.accessToken) {
+          return { error: "Credenciais Meta Cloud não configuradas para esta empresa" };
+        }
+        const result = await metaSendText(
+          { phoneNumberId: wabaConfig.phoneNumberId, accessToken: wabaConfig.accessToken },
+          phone,
+          content
+        );
+        whatsappMessageId = result?.messages?.[0]?.id ?? null;
+      } else {
+        if (!instanceName) return { error: "WhatsApp não configurado para esta empresa" };
+        const result = await sendText(instanceName, phone, content);
+        whatsappMessageId = result?.key?.id ?? null;
+      }
     }
 
     if (channel === "email") {
@@ -95,6 +123,7 @@ interface SendMediaParams {
   contactId: string;
   phone: string | null;
   instanceName: string | null;
+  tenantId?: string | null;
   mediaType: string;
   base64: string;
   mimeType: string;
@@ -104,23 +133,42 @@ interface SendMediaParams {
 
 export async function sendContactMedia(params: SendMediaParams) {
   const user = await requireRole(["sdr", "admin_placego", "corretor", "corretor_tenant"]);
-  const { contactId, phone, instanceName, mediaType, base64, mimeType, caption, fileName } = params;
+  const { contactId, phone, instanceName, tenantId, mediaType, base64, mimeType, caption, fileName } = params;
 
   if (!phone) return { error: "Telefone não cadastrado" };
-  if (!instanceName) return { error: "WhatsApp não configurado" };
 
   try {
-    // Enviar pelo WhatsApp
-    let waResult: any;
-    if (mediaType === "audio") {
-      waResult = await sendAudio(instanceName, phone, base64);
-    } else {
-      waResult = await sendMedia(instanceName, phone, mediaType as any, base64, caption, fileName);
-    }
-    const whatsappMessageId = waResult?.key?.id ?? null;
-
     // Salvar no storage para exibir na timeline
     const mediaUrl = await uploadBase64ToStorage(base64, mimeType, `sent/${contactId}`);
+
+    // Detectar provider
+    const wabaConfig = tenantId ? await getTenantWabaConfig(tenantId) : null;
+
+    let whatsappMessageId: string | null = null;
+    if (wabaConfig?.provider === "meta_cloud") {
+      if (!wabaConfig.phoneNumberId || !wabaConfig.accessToken) {
+        return { error: "Credenciais Meta Cloud não configuradas para esta empresa" };
+      }
+      const metaMediaType = mediaType === "audio" ? "audio" : mediaType as "image" | "video" | "document" | "audio";
+      const result = await metaSendMedia(
+        { phoneNumberId: wabaConfig.phoneNumberId, accessToken: wabaConfig.accessToken },
+        phone,
+        metaMediaType,
+        mediaUrl,
+        caption || undefined,
+        mediaType === "document" ? fileName : undefined
+      );
+      whatsappMessageId = result?.messages?.[0]?.id ?? null;
+    } else {
+      if (!instanceName) return { error: "WhatsApp não configurado para esta empresa" };
+      let waResult: any;
+      if (mediaType === "audio") {
+        waResult = await sendAudio(instanceName, phone, base64);
+      } else {
+        waResult = await sendMedia(instanceName, phone, mediaType as any, base64, caption, fileName);
+      }
+      whatsappMessageId = waResult?.key?.id ?? null;
+    }
 
     await db.insert(contactMessages).values({
       contactId,

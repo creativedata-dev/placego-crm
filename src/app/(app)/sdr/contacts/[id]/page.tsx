@@ -198,7 +198,9 @@ export default async function ContactDetailPage({
             contactEmail={c.email}
             contactName={c.name}
             defaultChannel={defaultReplyChannel}
-            tenantSlug={tenantSlug ? `placego-${tenantSlug}` : null}
+            tenantSlug={tenantProvider === "meta_cloud" ? null : (tenantSlug ? `placego-${tenantSlug}` : null)}
+            tenantId={c.tenantId ?? null}
+            isMetaCloud={tenantProvider === "meta_cloud"}
           />
         </div>
 

@@ -19,10 +19,12 @@ interface Props {
   contactName: string;
   defaultChannel: string;
   tenantSlug: string | null;
+  tenantId?: string | null;
+  isMetaCloud?: boolean;
 }
 
 export function ContactReply({
-  contactId, contactPhone, contactEmail, contactName, defaultChannel, tenantSlug,
+  contactId, contactPhone, contactEmail, contactName, defaultChannel, tenantSlug, tenantId, isMetaCloud,
 }: Props) {
   const [channel, setChannel] = useState(defaultChannel);
   const [message, setMessage] = useState("");
@@ -37,7 +39,7 @@ export function ContactReply({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const canSendWhatsApp = !!contactPhone && !!tenantSlug;
+  const canSendWhatsApp = !!contactPhone && (isMetaCloud ? true : !!tenantSlug);
   const canSendEmail = !!contactEmail;
   const canSend = channel === "whatsapp" ? canSendWhatsApp : channel === "email" ? canSendEmail : false;
   const canSendMedia = channel === "whatsapp" && canSendWhatsApp;
@@ -111,6 +113,7 @@ export function ContactReply({
             contactId,
             phone: contactPhone,
             instanceName: tenantSlug,
+            tenantId,
             mediaType: "audio",
             base64,
             mimeType: "audio/ogg",
@@ -131,6 +134,7 @@ export function ContactReply({
             contactId,
             phone: contactPhone,
             instanceName: tenantSlug,
+            tenantId,
             mediaType,
             base64,
             mimeType,
@@ -147,6 +151,7 @@ export function ContactReply({
             contactId, channel, content: message.trim(),
             phone: contactPhone, email: contactEmail,
             name: contactName, instanceName: tenantSlug,
+            tenantId,
           });
           if (result?.error) { setError(result.error); return; }
           setMessage("");
