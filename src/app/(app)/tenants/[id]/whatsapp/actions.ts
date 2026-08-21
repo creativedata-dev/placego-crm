@@ -5,8 +5,6 @@ import { tenants } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { metaVerifyCredentials } from "@/lib/whatsapp";
-
 interface MetaCloudPayload {
   provider: "evolution" | "meta_cloud";
   metaPhoneNumberId: string;
@@ -27,16 +25,6 @@ export async function saveMetaCloudConfig(
   if (payload.provider === "meta_cloud") {
     if (!payload.metaPhoneNumberId || !payload.metaAccessToken) {
       return { ok: false, message: "Phone Number ID e Access Token são obrigatórios para a Meta Cloud API." };
-    }
-
-    // Verificar credenciais antes de salvar
-    const check = await metaVerifyCredentials({
-      phoneNumberId: payload.metaPhoneNumberId,
-      accessToken: payload.metaAccessToken,
-    });
-
-    if (!check.ok) {
-      return { ok: false, message: `Credenciais inválidas: ${check.error}` };
     }
   }
 
