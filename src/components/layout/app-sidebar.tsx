@@ -15,6 +15,7 @@ import {
   Kanban,
   ContactRound,
   Plug,
+  Wifi,
   LogOut,
   Bell,
 } from "lucide-react";
@@ -49,6 +50,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Kanban,
   ContactRound,
   Plug,
+  Wifi,
 };
 
 interface AppSidebarProps {
