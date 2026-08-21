@@ -72,6 +72,64 @@ export async function getPhoneStatus(
   };
 }
 
+// ── Saúde completa da conta WABA ─────────────────────────────────────────────
+
+export interface WabaAccountHealth {
+  wabaId: string;
+  name: string;
+  currency: string;
+  timezone: string;
+  reviewStatus: string; // APPROVED, PENDING, etc.
+  banState: string;     // NONE, SCHEDULE_FOR_DISABLE, FLAGGED, etc.
+  verified: boolean;
+  namespaceTemplates: string;
+  phoneNumbers: WabaPhoneStatus[];
+}
+
+export async function getWabaHealth(
+  wabaId: string,
+  token: string
+): Promise<WabaAccountHealth> {
+  // Busca dados da conta WABA
+  const waba = await graph(
+    `/${wabaId}?fields=name,currency,timezone_id,account_review_status,ban_state,message_template_namespace,on_behalf_of_business_info`,
+    token
+  );
+
+  // Busca números vinculados
+  const phonesData = await graph(
+    `/${wabaId}/phone_numbers?fields=id,display_phone_number,quality_rating,messaging_limit_tier,account_mode,verified_name,code_verification_status,name_status`,
+    token
+  );
+
+  const phoneNumbers: WabaPhoneStatus[] = (phonesData.data ?? []).map((p: any) => {
+    const tier = (p.messaging_limit_tier ?? "TIER_1") as WabaPhoneStatus["tier"];
+    return {
+      phoneNumberId: p.id,
+      displayPhone: p.display_phone_number ?? "",
+      qualityRating: (p.quality_rating ?? "UNKNOWN") as WabaPhoneStatus["qualityRating"],
+      tier,
+      accountMode: (p.account_mode ?? "LIVE") as WabaPhoneStatus["accountMode"],
+      dailyLimit: TIER_LIMITS[tier] ?? 1000,
+      verifiedName: p.verified_name ?? "",
+      status: p.code_verification_status ?? "UNKNOWN",
+      nameStatus: p.name_status ?? "",
+    } as WabaPhoneStatus & { nameStatus: string };
+  });
+
+  return {
+    wabaId,
+    name: waba.name ?? "",
+    currency: waba.currency ?? "",
+    timezone: waba.timezone_id ?? "",
+    reviewStatus: waba.account_review_status ?? "UNKNOWN",
+    banState: waba.ban_state ?? "NONE",
+    verified: waba.account_review_status === "APPROVED",
+    namespaceTemplates: waba.message_template_namespace ?? "",
+    phoneNumbers,
+  };
+}
+
 // ── Templates aprovados ───────────────────────────────────────────────────────
 
 export interface WabaTemplate {

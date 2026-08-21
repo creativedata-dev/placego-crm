@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { tenants } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
-import { getPhoneStatus } from "@/lib/meta-waba";
+import { getWabaHealth, getPhoneStatus } from "@/lib/meta-waba";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,8 +19,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Meta Cloud API não configurada para esta empresa" }, { status: 422 });
     }
 
+    // Se tiver WABA ID, busca saúde completa da conta
+    if (tenant.metaWabaId) {
+      try {
+        const health = await getWabaHealth(tenant.metaWabaId, tenant.metaAccessToken);
+        return NextResponse.json({ mode: "full", ...health });
+      } catch {
+        // Fallback para status do número individual
+      }
+    }
+
+    // Fallback: só o número configurado
     const status = await getPhoneStatus(tenant.metaPhoneNumberId, tenant.metaAccessToken);
-    return NextResponse.json(status);
+    return NextResponse.json({ mode: "phone", phoneNumbers: [status] });
+
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
