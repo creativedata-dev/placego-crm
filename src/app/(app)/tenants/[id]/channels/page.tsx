@@ -66,6 +66,7 @@ export default async function CompanyChannelsPage({
           metaAccessToken={tenant.metaAccessToken ?? ""}
           metaWabaId={tenant.metaWabaId ?? ""}
           metaVerifyToken={tenant.metaVerifyToken ?? ""}
+          metaAutoWelcome={tenant.metaAutoWelcome ?? true}
         />
         <MetaTutorial />
       </div>

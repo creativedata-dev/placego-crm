@@ -14,14 +14,16 @@ interface Props {
   metaAccessToken: string;
   metaWabaId: string;
   metaVerifyToken: string;
+  metaAutoWelcome: boolean;
 }
 
-export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhoneNumberId, metaAccessToken, metaWabaId, metaVerifyToken }: Props) {
+export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhoneNumberId, metaAccessToken, metaWabaId, metaVerifyToken, metaAutoWelcome: initialAutoWelcome }: Props) {
   const [provider, setProvider] = useState(initialProvider);
   const [phoneId, setPhoneId] = useState(metaPhoneNumberId);
   const [token, setToken] = useState(metaAccessToken);
   const [wabaId, setWabaId] = useState(metaWabaId);
   const [verifyToken, setVerifyToken] = useState(metaVerifyToken);
+  const [autoWelcome, setAutoWelcome] = useState(initialAutoWelcome);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -34,6 +36,7 @@ export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhone
         metaAccessToken: token,
         metaWabaId: wabaId,
         metaVerifyToken: verifyToken,
+        metaAutoWelcome: autoWelcome,
       });
       setResult(res);
     });
@@ -156,6 +159,30 @@ export function MetaCloudConfig({ tenantId, provider: initialProvider, metaPhone
             <p className="text-xs text-muted-foreground">
               Token usado na verificação do webhook Meta. URL: <span className="font-mono">https://crm.placego.com.br/api/meta/webhook</span>
             </p>
+          </div>
+
+          <div className="flex items-start gap-3 pt-2 border-t">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoWelcome}
+              onClick={() => setAutoWelcome((v) => !v)}
+              className={`relative mt-0.5 shrink-0 h-5 w-9 rounded-full transition-colors ${
+                autoWelcome ? "bg-green-500" : "bg-muted-foreground/30"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  autoWelcome ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <div>
+              <p className="text-sm font-medium">Enviar template de boas-vindas automaticamente</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Ao receber novo contato com telefone, dispara o template <span className="font-mono">template_reativacao</span> abrindo a janela de 24h para o SDR responder livremente.
+              </p>
+            </div>
           </div>
         </div>
       )}

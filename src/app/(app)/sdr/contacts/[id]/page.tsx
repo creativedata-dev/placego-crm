@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { leads, sdrAssignments, contactMessages, users, tenants, properties, tags, contactTags, leadAssignments } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { WabaWindowBanner } from "./waba-window-banner";
+import { eq, desc, and } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { MarkRead } from "./mark-read";
 import { ContactTimeline } from "./contact-timeline";
@@ -61,6 +62,7 @@ export default async function ContactDetailPage({
       contact: leads,
       tenantName: tenants.name,
       tenantSlug: tenants.slug,
+      tenantProvider: tenants.whatsappProvider,
       propertyAddress: properties.address,
     })
     .from(leads)
@@ -97,6 +99,14 @@ export default async function ContactDetailPage({
     .where(eq(contactMessages.contactId, id))
     .orderBy(contactMessages.sentAt);
 
+  // Última mensagem recebida do contato (para calcular janela WABA de 24h)
+  const [lastInbound] = await db
+    .select({ sentAt: contactMessages.sentAt })
+    .from(contactMessages)
+    .where(and(eq(contactMessages.contactId, id), eq(contactMessages.direction, "in")))
+    .orderBy(desc(contactMessages.sentAt))
+    .limit(1);
+
   // Buscar tags do contato
   const contactTagRows = await db
     .select({ tag: tags })
@@ -104,7 +114,7 @@ export default async function ContactDetailPage({
     .innerJoin(tags, eq(contactTags.tagId, tags.id))
     .where(eq(contactTags.contactId, id));
 
-  const { contact: c, tenantName, tenantSlug, propertyAddress } = contact;
+  const { contact: c, tenantName, tenantSlug, tenantProvider, propertyAddress } = contact;
   const assignmentStatus = assignment?.assignment.status ?? "novo";
   // Recalcular score dinamicamente com base nos campos reais (banco pode estar desatualizado)
   const score = (c.name && c.name !== "Sem nome" ? 20 : 0)
@@ -170,6 +180,15 @@ export default async function ContactDetailPage({
         {/* Timeline — 2/3 */}
         <div className="lg:col-span-2 space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Conversa</h2>
+
+          <WabaWindowBanner
+            contactId={id}
+            contactPhone={c.phone ?? null}
+            tenantId={c.tenantId ?? null}
+            lastInboundAt={lastInbound?.sentAt ?? null}
+            isMetaCloud={tenantProvider === "meta_cloud"}
+          />
+
           <ContactTimeline messages={messages.map((m) => ({ ...m.msg, sdrName: m.sdrName }))} origin={c.origin} />
 
           {/* Interface de resposta */}

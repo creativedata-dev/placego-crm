@@ -37,6 +37,7 @@ export default async function TenantWhatsAppPage({
         metaAccessToken={tenant.metaAccessToken ?? ""}
         metaWabaId={tenant.metaWabaId ?? ""}
         metaVerifyToken={tenant.metaVerifyToken ?? ""}
+        metaAutoWelcome={tenant.metaAutoWelcome ?? true}
       />
 
       {/* Saúde do número WABA — só exibe se Meta Cloud ativo e configurado */}

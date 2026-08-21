@@ -109,12 +109,13 @@ export async function ingestContactMessage(params: IngestParams) {
       phoneNumberId: tenants.metaPhoneNumberId,
       accessToken: tenants.metaAccessToken,
       provider: tenants.whatsappProvider,
+      autoWelcome: tenants.metaAutoWelcome,
     })
       .from(tenants)
       .where(eq(tenants.id, tenantId))
       .limit(1)
       .then(([tenant]) => {
-        if (tenant?.provider === "meta_cloud" && tenant.phoneNumberId && tenant.accessToken) {
+        if (tenant?.provider === "meta_cloud" && tenant.autoWelcome && tenant.phoneNumberId && tenant.accessToken) {
           sendWelcomeTemplate(tenant.phoneNumberId, tenant.accessToken, phone, name).catch(
             (err) => console.error("[ingest] erro ao enviar template de boas-vindas:", err)
           );

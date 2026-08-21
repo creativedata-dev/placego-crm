@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
 
 export const tenantTypeEnum = pgEnum("tenant_type", [
   "imobiliaria",
@@ -20,6 +20,8 @@ export const tenants = pgTable("tenants", {
   metaWabaId: text("meta_waba_id"),
   metaVerifyToken: text("meta_verify_token"),
   metaOptoutKeywords: text("meta_optout_keywords").array(),
+  // Enviar template de boas-vindas automaticamente ao criar novo contato
+  metaAutoWelcome: boolean("meta_auto_welcome").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
