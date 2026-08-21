@@ -190,6 +190,25 @@ export async function sendLeadDistributionTemplate(
 }
 
 /**
+ * Envia template de primeiro contato / boas-vindas ao novo lead.
+ * Template: template_reativacao (placeholder — substituir por template_primeiro_contato quando aprovado)
+ * Params: {{1}} = nome do contato
+ */
+export async function sendWelcomeTemplate(
+  phoneNumberId: string,
+  token: string,
+  toPhone: string,
+  contactName: string
+) {
+  return sendTemplate(phoneNumberId, token, toPhone, "template_reativacao", "pt_BR", [
+    {
+      type: "body",
+      parameters: [{ type: "text", text: contactName }],
+    },
+  ]);
+}
+
+/**
  * Envia template para retomar conversa fora da janela de 24h.
  * Template: iniciar_conversa
  * Params: {{1}} = nome do contato

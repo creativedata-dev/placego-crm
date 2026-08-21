@@ -1,8 +1,9 @@
 import { db } from "@/db";
-import { leads, contactMessages, sdrAssignments } from "@/db/schema";
+import { leads, contactMessages, sdrAssignments, tenants } from "@/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 import { notifySdrNewContact } from "@/lib/push";
+import { sendWelcomeTemplate } from "@/lib/meta-waba";
 
 interface IngestParams {
   name: string;
@@ -99,6 +100,27 @@ export async function ingestContactMessage(params: IngestParams) {
   // Push notification para o SDR atribuído
   if (assignedSdrId) {
     notifySdrNewContact(assignedSdrId, name, origin).catch(() => {});
+  }
+
+  // Template de boas-vindas via WABA (abre janela de 24h para o SDR responder livremente)
+  // Só dispara se: contato tem telefone + tenant usa Meta Cloud API
+  if (phone && tenantId) {
+    db.select({
+      phoneNumberId: tenants.metaPhoneNumberId,
+      accessToken: tenants.metaAccessToken,
+      provider: tenants.whatsappProvider,
+    })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1)
+      .then(([tenant]) => {
+        if (tenant?.provider === "meta_cloud" && tenant.phoneNumberId && tenant.accessToken) {
+          sendWelcomeTemplate(tenant.phoneNumberId, tenant.accessToken, phone, name).catch(
+            (err) => console.error("[ingest] erro ao enviar template de boas-vindas:", err)
+          );
+        }
+      })
+      .catch(() => {});
   }
 
   return { contactId: contact.id, isNew: true };
