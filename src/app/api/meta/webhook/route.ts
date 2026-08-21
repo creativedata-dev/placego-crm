@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { companyChannels, tenants, contactMessages, contactOptouts, users, leadAssignments, leads, developments, properties } from "@/db/schema";
+import { companyChannels, tenants, contactMessages, contactOptouts, users, leadAssignments, sdrAssignments, leads, developments, properties } from "@/db/schema";
 import { eq, and, or, isNull, desc } from "drizzle-orm";
 import { ingestContactMessage } from "@/lib/contact-ingestion";
 import { markAsRead } from "@/lib/meta-waba";
@@ -303,7 +303,48 @@ async function handleWabaMessage(
       }
       return; // não ingesta a resposta do corretor como contato
     }
-    return; // ignora outras mensagens de corretores
+
+    // Outra mensagem de corretor — orienta a falar com o SDR do lead
+    if (tenant.metaPhoneNumberId && tenant.metaAccessToken) {
+      // Busca o lead assignment mais recente para achar o SDR qualificador
+      const [recentAssignment] = await db
+        .select({ leadId: leadAssignments.leadId })
+        .from(leadAssignments)
+        .where(eq(leadAssignments.brokerId, brokerUser.id))
+        .orderBy(desc(leadAssignments.assignedAt))
+        .limit(1);
+
+      let sdrName: string | null = null;
+      if (recentAssignment) {
+        const [sdrAssignment] = await db
+          .select({ sdrId: sdrAssignments.sdrId })
+          .from(sdrAssignments)
+          .where(eq(sdrAssignments.contactId, recentAssignment.leadId))
+          .orderBy(desc(sdrAssignments.assignedAt))
+          .limit(1);
+
+        if (sdrAssignment) {
+          const [sdrUser] = await db
+            .select({ name: users.name })
+            .from(users)
+            .where(eq(users.id, sdrAssignment.sdrId))
+            .limit(1);
+          sdrName = sdrUser?.name ?? null;
+        }
+      }
+
+      const msg = sdrName
+        ? `Para mais informações sobre este lead, entre em contato com *${sdrName}*.`
+        : `Para mais informações, entre em contato com o SDR responsável pelo lead.`;
+
+      const { metaSendText } = await import("@/lib/meta-cloud");
+      metaSendText(
+        { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
+        fromPhone,
+        msg
+      ).catch((err) => console.error("[waba] erro ao enviar msg de orientacao ao corretor:", err));
+    }
+    return;
   }
 
   const contactName = metaContact?.profile?.name ?? fromPhone;
