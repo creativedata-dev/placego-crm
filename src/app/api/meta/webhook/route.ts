@@ -216,17 +216,24 @@ async function handleWabaMessage(
 
   // Verifica se o remetente é um corretor que respondeu ao template de lead
   const normalizedFrom = fromPhone.replace(/\D/g, "");
+  const phoneVariants = [
+    fromPhone,
+    normalizedFrom,
+    normalizedFrom.replace(/^55/, ""),
+    // com hífen/espaço como pode estar salvo manualmente
+    normalizedFrom.replace(/^55(\d{2})(\d{4,5})(\d{4})$/, "$1 $2-$3"),
+  ];
+  console.log(`[waba] mensagem de ${fromPhone} | tipo=${msg.type} | text=${text?.slice(0, 50)}`);
+
   const [brokerUser] = await db
-    .select({ id: users.id, name: users.name, phone: users.phone })
+    .select({ id: users.id, name: users.name, phone: users.phone, role: users.role })
     .from(users)
     .where(
-      or(
-        eq(users.phone, fromPhone),
-        eq(users.phone, normalizedFrom),
-        eq(users.phone, normalizedFrom.replace(/^55/, "")),
-      )
+      or(...phoneVariants.map((p) => eq(users.phone, p)))
     )
     .limit(1);
+
+  console.log(`[waba] brokerUser encontrado:`, brokerUser ? `${brokerUser.name} (${brokerUser.role})` : "nenhum");
 
   if (brokerUser) {
     // Detecta clique no botão "Pode sim!" (button_reply) ou texto equivalente
@@ -234,26 +241,23 @@ async function handleWabaMessage(
       ? (msg.interactive?.button_reply?.title ?? "").toLowerCase().includes("pode sim")
       : normalized.includes("PODE SIM");
 
+    console.log(`[waba] isPodeSim=${isPodeSim} | metaPhone=${tenant.metaPhoneNumberId ? "ok" : "missing"}`);
+
     if (isPodeSim && tenant.metaPhoneNumberId && tenant.metaAccessToken) {
-      // Busca o lead assignment mais recente desse corretor (status new ou contacted)
+      // Busca o lead assignment mais recente desse corretor (qualquer status exceto arquivado)
       const [assignment] = await db
         .select({
           id: leadAssignments.id,
           leadId: leadAssignments.leadId,
           notes: leadAssignments.notes,
+          status: leadAssignments.status,
         })
         .from(leadAssignments)
-        .where(
-          and(
-            eq(leadAssignments.brokerId, brokerUser.id),
-            or(
-              eq(leadAssignments.status, "new"),
-              eq(leadAssignments.status, "contacted"),
-            )
-          )
-        )
+        .where(eq(leadAssignments.brokerId, brokerUser.id))
         .orderBy(desc(leadAssignments.assignedAt))
         .limit(1);
+
+      console.log(`[waba] assignment encontrado:`, assignment ? `id=${assignment.id} status=${assignment.status}` : "nenhum");
 
       if (assignment) {
         const [contact] = await db
@@ -286,7 +290,9 @@ async function handleWabaMessage(
           developmentName = prop?.address ?? null;
         }
 
+        console.log(`[waba] contact encontrado:`, contact ? contact.name : "nenhum");
         if (contact) {
+          console.log(`[waba] enviando metaSendLeadDetails para ${fromPhone}`);
           await metaSendLeadDetails(
             { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
             fromPhone,
@@ -301,6 +307,7 @@ async function handleWabaMessage(
               notes: assignment.notes,
             }
           ).catch((err) => console.error("[waba] erro ao enviar detalhes do lead:", err));
+          console.log(`[waba] metaSendLeadDetails enviado`);
         }
       }
       return; // não ingesta a resposta do corretor como contato
