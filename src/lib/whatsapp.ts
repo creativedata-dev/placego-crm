@@ -28,8 +28,8 @@ export async function wpNotifyBrokerNewLead(
 ) {
   if (config.provider === "meta_cloud") {
     if (!config.metaPhoneNumberId || !config.metaAccessToken) {
-      console.warn("[whatsapp] Meta Cloud configurado mas sem credenciais — pulando notificação");
-      return;
+      console.warn("[whatsapp] Meta Cloud configurado mas sem credenciais — notificação WhatsApp ignorada");
+      return; // NÃO faz fallback para Evolution de outra empresa
     }
     return metaNotifyBrokerNewLead(
       { phoneNumberId: config.metaPhoneNumberId, accessToken: config.metaAccessToken },
@@ -42,10 +42,10 @@ export async function wpNotifyBrokerNewLead(
     );
   }
 
-  // Padrão: Evolution API
+  // Evolution: só envia se a instância do próprio tenant está configurada
   if (!config.evolutionInstance) {
-    console.warn("[whatsapp] Evolution sem instância configurada — pulando notificação");
-    return;
+    console.warn("[whatsapp] Evolution sem instância configurada — notificação WhatsApp ignorada");
+    return; // NÃO usa instância de outro tenant
   }
   return evolutionNotifyBroker(
     config.evolutionInstance,
@@ -65,14 +65,20 @@ export async function wpSendText(
   text: string
 ) {
   if (config.provider === "meta_cloud") {
-    if (!config.metaPhoneNumberId || !config.metaAccessToken) return;
+    if (!config.metaPhoneNumberId || !config.metaAccessToken) {
+      console.warn("[whatsapp] wpSendText: Meta Cloud sem credenciais — ignorado");
+      return;
+    }
     return metaSendText(
       { phoneNumberId: config.metaPhoneNumberId, accessToken: config.metaAccessToken },
       phone,
       text
     );
   }
-  if (!config.evolutionInstance) return;
+  if (!config.evolutionInstance) {
+    console.warn("[whatsapp] wpSendText: Evolution sem instância — ignorado");
+    return;
+  }
   return evolutionSendText(config.evolutionInstance, phone, text);
 }
 
