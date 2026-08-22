@@ -4,6 +4,7 @@ import { tenants } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { listAutomations } from "@/app/actions/automations";
+import { listOptouts } from "@/app/actions/optout";
 import { AutomationsManager } from "./automations-manager";
 import { listTemplates } from "@/lib/meta-waba";
 
@@ -16,10 +17,13 @@ export default async function AutomationsPage({ params }: { params: Promise<{ id
   const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
   if (!tenant) notFound();
 
-  const automations = await listAutomations(id);
+  const [automations, optouts] = await Promise.all([
+    listAutomations(id),
+    listOptouts(id),
+  ]);
 
-  // Busca templates aprovados se tiver Meta Cloud configurado
-  let approvedTemplates: { name: string; params: number }[] = [];
+  // Templates aprovados da WABA para automações personalizadas
+  let approvedTemplates: { name: string; params: number; bodyText: string }[] = [];
   if (tenant.metaWabaId && tenant.metaAccessToken) {
     try {
       const templates = await listTemplates(tenant.metaWabaId, tenant.metaAccessToken);
@@ -28,9 +32,9 @@ export default async function AutomationsPage({ params }: { params: Promise<{ id
         .map((t) => {
           const body = t.components.find((c: any) => c.type === "BODY") as any;
           const paramCount = (body?.text?.match(/\{\{\d+\}\}/g) ?? []).length;
-          return { name: t.name, params: paramCount };
+          return { name: t.name, params: paramCount, bodyText: body?.text ?? "" };
         });
-    } catch { /* sem templates disponíveis */ }
+    } catch { /* sem templates */ }
   }
 
   return (
@@ -40,6 +44,10 @@ export default async function AutomationsPage({ params }: { params: Promise<{ id
       automations={automations}
       approvedTemplates={approvedTemplates}
       isMetaCloud={tenant.whatsappProvider === "meta_cloud"}
+      autoWelcome={tenant.metaAutoWelcome}
+      welcomeMessage={tenant.metaWelcomeMessage ?? ""}
+      optoutKeywords={(tenant.metaOptoutKeywords as string[] | null) ?? ["PARAR", "STOP", "CANCELAR", "SAIR", "NAO QUERO", "NÃO QUERO"]}
+      optouts={optouts}
     />
   );
 }

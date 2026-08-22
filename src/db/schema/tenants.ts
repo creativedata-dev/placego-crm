@@ -22,6 +22,7 @@ export const tenants = pgTable("tenants", {
   metaOptoutKeywords: text("meta_optout_keywords").array(),
   // Enviar template de boas-vindas automaticamente ao criar novo contato
   metaAutoWelcome: boolean("meta_auto_welcome").notNull().default(true),
+  metaWelcomeMessage: text("meta_welcome_message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
