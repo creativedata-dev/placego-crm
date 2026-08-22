@@ -246,9 +246,12 @@ async function handleWabaMessage(
 
   if (brokerUser) {
     // Detecta clique no botão "Pode sim!" (button_reply) ou texto equivalente
-    const isPodeSim = msg.type === "interactive"
-      ? (msg.interactive?.button_reply?.title ?? "").toLowerCase().includes("pode sim")
-      : normalized.includes("PODE SIM");
+    const isPodeSim =
+      msg.type === "button"
+        ? (msg.button?.text ?? msg.button?.payload ?? "").toLowerCase().includes("pode sim")
+        : msg.type === "interactive"
+          ? (msg.interactive?.button_reply?.title ?? "").toLowerCase().includes("pode sim")
+          : normalized.includes("PODE SIM");
 
     await dblog("5_isPodeSim", { isPodeSim, msgType: msg.type, interactiveType: msg.interactive?.type, buttonTitle: msg.interactive?.button_reply?.title, metaPhoneOk: !!tenant.metaPhoneNumberId });
 
@@ -396,7 +399,9 @@ async function handleWabaMessage(
 function extractWabaText(msg: any): string | null {
   switch (msg.type) {
     case "text": return msg.text?.body ?? null;
-    // Resposta de botão de template (quick reply) — ex: "Pode sim!"
+    // Resposta de botão de template HSM — type="button" (não "interactive")
+    case "button": return msg.button?.text ?? msg.button?.payload ?? null;
+    // Resposta de botão interativo (list/reply buttons)
     case "interactive": {
       const t = msg.interactive?.type;
       if (t === "button_reply") return msg.interactive.button_reply?.title ?? null;
