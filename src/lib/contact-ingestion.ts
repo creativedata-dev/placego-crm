@@ -4,6 +4,7 @@ import { eq, and, gte, sql } from "drizzle-orm";
 import { assignContactToNextSdr } from "@/lib/round-robin";
 import { notifySdrNewContact } from "@/lib/push";
 import { sendWelcomeTemplate } from "@/lib/meta-waba";
+import { fireAutomation } from "@/lib/automation-engine";
 
 interface IngestParams {
   name: string;
@@ -122,6 +123,14 @@ export async function ingestContactMessage(params: IngestParams) {
         }
       })
       .catch(() => {});
+  }
+
+  // Disparar automações do trigger contact_created
+  if (tenantId) {
+    fireAutomation("contact_created", {
+      tenantId,
+      contact: { name, phone, email },
+    }).catch(() => {});
   }
 
   return { contactId: contact.id, isNew: true };

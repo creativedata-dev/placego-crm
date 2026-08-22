@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ChevronDown } from "lucide-react";
+import { Plus, ChevronDown, Zap } from "lucide-react";
+import Link from "next/link";
 import { ChannelCard } from "./channel-card";
 import { WhatsAppConnector } from "./connectors/whatsapp-connector";
 import { MetaDmConnector } from "./connectors/meta-dm-connector";
@@ -130,9 +131,15 @@ export function ChannelsManager({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <p className="text-sm text-muted-foreground">Empresa</p>
-        <h1 className="text-2xl font-bold">{tenantName}</h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground">Empresa</p>
+          <h1 className="text-2xl font-bold">{tenantName}</h1>
+        </div>
+        <Link href={`/tenants/${tenantId}/automations`}
+          className="flex items-center gap-1.5 text-sm font-medium border rounded-lg px-3 py-2 hover:bg-muted transition-colors shrink-0">
+          <Zap className="h-4 w-4" />Automações
+        </Link>
       </div>
 
       <div className="flex items-start justify-between gap-4">

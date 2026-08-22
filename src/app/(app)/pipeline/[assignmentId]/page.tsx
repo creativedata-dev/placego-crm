@@ -36,6 +36,8 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
       lead: leads,
       brokerName: users.name,
       tenantSlug: tenants.slug,
+      tenantId: tenants.id,
+      whatsappProvider: tenants.whatsappProvider,
     })
     .from(leadAssignments)
     .innerJoin(leads, eq(leadAssignments.leadId, leads.id))
@@ -44,13 +46,15 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
     .where(eq(leadAssignments.id, assignmentId))
     .limit(1);
 
+
   if (!row) notFound();
 
   const isAdmin = user.role === "admin_placego" || user.role === "sdr";
   if (!isAdmin && row.assignment.brokerId !== user.id) notFound();
 
-  const { lead, assignment, brokerName, tenantSlug } = row;
+  const { lead, assignment, brokerName, tenantSlug, tenantId: rowTenantId, whatsappProvider } = row;
   const instanceName = tenantSlug ? `placego-${tenantSlug}` : null;
+  const isMetaCloud = whatsappProvider === "meta_cloud";
 
   const [activities, allMessages, sdrAssignment] = await Promise.all([
     db
@@ -107,6 +111,15 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
   const messages = allMessages.map(({ msg, sdrName }) => ({ ...msg, sdrName }));
   const defaultReplyChannel = lead.origin === "email" ? "email" : "whatsapp";
 
+  // Janela de 24h: última mensagem recebida (direction=in) do contato
+  const lastInboundMsg = [...allMessages]
+    .reverse()
+    .find(({ msg }) => msg.direction === "in");
+  const windowOpenUntil = lastInboundMsg
+    ? new Date(new Date(lastInboundMsg.msg.sentAt).getTime() + 24 * 60 * 60 * 1000)
+    : null;
+  const windowIsOpen = windowOpenUntil ? windowOpenUntil > new Date() : false;
+
   return (
     <div className="max-w-5xl space-y-4">
       <ScrollToTop />
@@ -148,6 +161,10 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
             contactName={lead.name}
             defaultChannel={defaultReplyChannel}
             tenantSlug={instanceName}
+            tenantId={rowTenantId}
+            isMetaCloud={isMetaCloud}
+            windowIsOpen={windowIsOpen}
+            windowOpenUntil={windowOpenUntil?.toISOString() ?? null}
           />
         </div>
 

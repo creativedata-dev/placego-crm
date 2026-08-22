@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { sendText, sendMedia, sendAudio } from "@/lib/evolution";
 import { metaSendText, metaSendMedia } from "@/lib/meta-cloud";
+import { sendReopenTemplate } from "@/lib/meta-waba";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
@@ -188,5 +189,38 @@ export async function sendContactMedia(params: SendMediaParams) {
   } catch (err: any) {
     console.error("[sendContactMedia]", err);
     return { error: err.message ?? "Erro ao enviar mídia" };
+  }
+}
+
+/** Envia template de reativação para reabrir janela de 24h da Meta Cloud API */
+export async function reopenConversation(params: {
+  contactId: string;
+  tenantId: string;
+  phone: string;
+  contactName: string;
+}) {
+  await requireRole(["sdr", "admin_placego", "corretor", "corretor_tenant"]);
+  const { contactId, tenantId, phone, contactName } = params;
+
+  const wabaConfig = await getTenantWabaConfig(tenantId);
+  if (!wabaConfig?.phoneNumberId || !wabaConfig?.accessToken) {
+    return { error: "Credenciais Meta Cloud não configuradas para esta empresa" };
+  }
+
+  try {
+    await sendReopenTemplate(wabaConfig.phoneNumberId, wabaConfig.accessToken, phone, contactName);
+
+    await db.insert(contactMessages).values({
+      contactId,
+      channel: "whatsapp",
+      direction: "out",
+      content: "[Template de reativação enviado]",
+      ack: 0,
+    });
+
+    revalidatePath(`/sdr/contacts/${contactId}`);
+    return { ok: true };
+  } catch (err: any) {
+    return { error: err.message ?? "Erro ao enviar template" };
   }
 }

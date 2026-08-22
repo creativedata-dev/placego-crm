@@ -56,10 +56,28 @@ export async function notifySdrNewContact(sdrId: string, contactName: string, or
   });
 }
 
-export async function notifyBrokerNewLead(brokerId: string, contactName: string) {
+export async function notifyBrokerNewLead(
+  brokerId: string,
+  contactName: string,
+  opts?: {
+    phone?: string | null;
+    email?: string | null;
+    assignmentId?: string | null;
+    notes?: string | null;
+  }
+) {
+  const lines: string[] = [];
+  if (opts?.phone) lines.push(`📞 ${opts.phone}`);
+  if (opts?.email) lines.push(`✉️ ${opts.email}`);
+  if (opts?.notes) lines.push(`💬 ${opts.notes}`);
+
+  const body = lines.length > 0
+    ? lines.join(" · ")
+    : `${contactName} foi distribuído para o seu pipeline`;
+
   await sendToUser(brokerId, {
-    title: "Novo lead para você!",
-    body: `${contactName} foi distribuído para o seu pipeline`,
-    url: "/pipeline",
+    title: `Novo lead: ${contactName}`,
+    body,
+    url: opts?.assignmentId ? `/pipeline/${opts.assignmentId}` : "/pipeline",
   });
 }

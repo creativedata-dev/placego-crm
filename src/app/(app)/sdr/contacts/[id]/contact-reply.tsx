@@ -2,8 +2,8 @@
 
 import { useState, useTransition, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { sendContactMessage, sendContactMedia } from "@/app/actions/messages";
-import { Send, Loader2, Paperclip, X, Mic, Square } from "lucide-react";
+import { sendContactMessage, sendContactMedia, reopenConversation } from "@/app/actions/messages";
+import { Send, Loader2, Paperclip, X, Mic, Square, AlertTriangle, RefreshCw, Clock } from "lucide-react";
 
 const CHANNELS = [
   { value: "whatsapp", label: "💬 WhatsApp", needsPhone: true },
@@ -21,16 +21,21 @@ interface Props {
   tenantSlug: string | null;
   tenantId?: string | null;
   isMetaCloud?: boolean;
+  windowIsOpen?: boolean;
+  windowOpenUntil?: string | null;
 }
 
 export function ContactReply({
   contactId, contactPhone, contactEmail, contactName, defaultChannel, tenantSlug, tenantId, isMetaCloud,
+  windowIsOpen, windowOpenUntil,
 }: Props) {
   const [channel, setChannel] = useState(defaultChannel);
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [isReopening, startReopenTransition] = useTransition();
+  const [reopenError, setReopenError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -166,6 +171,32 @@ export function ContactReply({
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSend();
   }
 
+  function handleReopen() {
+    if (!tenantId || !contactPhone) return;
+    setReopenError(null);
+    startReopenTransition(async () => {
+      const result = await reopenConversation({
+        contactId,
+        tenantId,
+        phone: contactPhone,
+        contactName,
+      });
+      if (result?.error) setReopenError(result.error);
+    });
+  }
+
+  // Tempo restante da janela (para exibir no badge)
+  const windowMinutesLeft = windowOpenUntil
+    ? Math.max(0, Math.round((new Date(windowOpenUntil).getTime() - Date.now()) / 60000))
+    : null;
+  const windowHoursLeft = windowMinutesLeft !== null ? Math.floor(windowMinutesLeft / 60) : null;
+  const windowLabel = windowHoursLeft !== null
+    ? windowHoursLeft > 0 ? `${windowHoursLeft}h ${windowMinutesLeft! % 60}min` : `${windowMinutesLeft}min`
+    : null;
+
+  // Bloqueia envio de texto livre se Meta Cloud + janela fechada
+  const windowBlocked = isMetaCloud && channel === "whatsapp" && canSendWhatsApp && windowIsOpen === false;
+
   // Cor de destaque por canal ativo
   const CHANNEL_ACCENT: Record<string, string> = {
     whatsapp:     "border-green-400 ring-1 ring-green-200 dark:ring-green-900",
@@ -211,6 +242,39 @@ export function ContactReply({
       </div>
 
       <div className="p-3 space-y-2">
+        {/* Banner de janela Meta Cloud */}
+        {isMetaCloud && channel === "whatsapp" && canSendWhatsApp && (
+          windowIsOpen === false ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-amber-800">Janela de atendimento fechada</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  A Meta só permite mensagens livres em até 24h após a última resposta do contato.
+                  Para iniciar contato, envie um template aprovado.
+                </p>
+                {reopenError && <p className="text-xs text-red-600 mt-1">{reopenError}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={handleReopen}
+                disabled={isReopening}
+                className="flex items-center gap-1 text-xs font-semibold text-amber-700 border border-amber-300 rounded-md px-2.5 py-1.5 hover:bg-amber-100 transition-colors shrink-0 disabled:opacity-50"
+              >
+                {isReopening ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Reabrir
+              </button>
+            </div>
+          ) : windowIsOpen === true && windowLabel ? (
+            <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5 text-green-600 shrink-0" />
+              <p className="text-xs text-green-700">
+                Janela aberta · expira em <span className="font-semibold">{windowLabel}</span>
+              </p>
+            </div>
+          ) : null
+        )}
+
         {/* Preview de arquivo anexado */}
         {attachedFile && (
           <div className="flex items-center gap-2 text-xs bg-muted/50 rounded-lg px-2.5 py-1.5">
@@ -247,13 +311,15 @@ export function ContactReply({
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              !canSend
+              windowBlocked
+                ? "Janela fechada — use o botão Reabrir para enviar um template"
+                : !canSend
                 ? channel === "whatsapp"
                   ? !contactPhone ? "Sem telefone cadastrado" : "Empresa sem WhatsApp configurado"
                   : "Sem email cadastrado"
                 : attachedFile ? "Legenda (opcional)..." : "Digite a mensagem… (Ctrl+Enter para enviar)"
             }
-            disabled={!canSend || isPending || isRecording}
+            disabled={!canSend || isPending || isRecording || windowBlocked}
             rows={3}
             className="w-full text-sm outline-none resize-none bg-transparent placeholder:text-muted-foreground/40 disabled:opacity-40 font-medium"
           />
@@ -322,7 +388,7 @@ export function ContactReply({
             <Button
               size="sm"
               onClick={handleSend}
-              disabled={(!message.trim() && !attachedFile && !audioBlob) || !canSend || isPending || isRecording}
+              disabled={(!message.trim() && !attachedFile && !audioBlob) || !canSend || isPending || isRecording || windowBlocked}
             >
               {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
               Enviar

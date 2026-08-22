@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { sendLeadAssignedEmail } from "@/lib/email";
 import { wpNotifyBrokerNewLead } from "@/lib/whatsapp";
 import { notifyBrokerNewLead as pushNotifyBroker } from "@/lib/push";
+import { fireAutomation } from "@/lib/automation-engine";
 
 export async function assignLeadToBrokers(
   leadId: string,
@@ -64,11 +65,18 @@ export async function assignLeadToBrokers(
     .set({ status: "distribuido", updatedAt: new Date() })
     .where(eq(sdrAssignments.contactId, leadId));
 
-  // Busca dados dos corretores
-  const brokers = await db
-    .select({ id: users.id, name: users.name, email: users.email, phone: users.phone, tenantId: users.tenantId })
-    .from(users)
-    .where(inArray(users.id, brokerIds));
+  // Busca dados dos corretores + assignments para montar link direto no push
+  const [brokers, assignments] = await Promise.all([
+    db
+      .select({ id: users.id, name: users.name, email: users.email, phone: users.phone, tenantId: users.tenantId })
+      .from(users)
+      .where(inArray(users.id, brokerIds)),
+    db
+      .select({ id: leadAssignments.id, brokerId: leadAssignments.brokerId })
+      .from(leadAssignments)
+      .where(and(eq(leadAssignments.leadId, leadId), inArray(leadAssignments.brokerId, brokerIds))),
+  ]);
+  const assignmentByBroker = new Map(assignments.map((a) => [a.brokerId, a.id]));
 
   // Busca configuração WhatsApp do tenant
   let wpConfig: import("@/lib/whatsapp").TenantWhatsAppConfig = { provider: "evolution" };
@@ -88,9 +96,14 @@ export async function assignLeadToBrokers(
     }
   }
 
-  // Push notification para cada corretor (independente do provedor WhatsApp)
+  // Push notification para cada corretor com dados do lead
   brokers.forEach((broker) => {
-    pushNotifyBroker(broker.id, contact?.name ?? "Novo lead").catch(() => {});
+    pushNotifyBroker(broker.id, contact?.name ?? "Novo lead", {
+      phone: contact?.phone,
+      email: contact?.email,
+      assignmentId: assignmentByBroker.get(broker.id) ?? null,
+      notes: notes ?? null,
+    }).catch(() => {});
   });
 
   // Envia email + WhatsApp para cada corretor com dados do contato
@@ -120,6 +133,23 @@ export async function assignLeadToBrokers(
         )
       ),
   ]);
+
+  // Disparar automações do trigger lead_distributed
+  if (contact?.tenantId) {
+    // Pega o primeiro assignment novo para o link_crm
+    const [firstAssignment] = await db
+      .select({ id: leadAssignments.id })
+      .from(leadAssignments)
+      .where(eq(leadAssignments.leadId, leadId))
+      .limit(1);
+
+    fireAutomation("lead_distributed", {
+      tenantId: contact.tenantId,
+      contact: { name: contact.name, phone: contact.phone, email: contact.email },
+      assignmentId: firstAssignment?.id,
+      brokerName: brokers[0]?.name,
+    }).catch(() => {});
+  }
 
   revalidatePath("/sdr/queue");
   revalidatePath(`/sdr/routing/${leadId}`);

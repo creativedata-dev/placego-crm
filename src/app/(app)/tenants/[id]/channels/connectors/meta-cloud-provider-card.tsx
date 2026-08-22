@@ -9,8 +9,9 @@ import {
   CheckCircle, XCircle, Loader2, Info, RefreshCw, Trash2,
   Phone, Flame, Zap, ExternalLink, AlertTriangle,
 } from "lucide-react";
+import { WabaTemplatesPanel } from "./waba-templates-panel";
 
-type Tab = "config" | "health" | "debug";
+type Tab = "config" | "health" | "templates" | "debug";
 
 // ── Saúde WABA ──────────────────────────────────────────────────────────────
 
@@ -354,9 +355,10 @@ export function MetaCloudProviderCard({
   }
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: "config", label: "Configuração" },
-    { key: "health", label: "Saúde WABA" },
-    { key: "debug", label: "Debug Webhook" },
+    { key: "config",    label: "Configuração" },
+    { key: "health",    label: "Saúde WABA" },
+    { key: "templates", label: "Templates" },
+    { key: "debug",     label: "Debug Webhook" },
   ];
 
   return (
@@ -446,6 +448,9 @@ export function MetaCloudProviderCard({
 
       {/* Saúde WABA */}
       {tab === "health" && <WabaHealthPanel tenantId={tenantId} />}
+
+      {/* Templates */}
+      {tab === "templates" && <WabaTemplatesPanel tenantId={tenantId} />}
 
       {/* Debug Webhook */}
       {tab === "debug" && <DebugPanel />}
