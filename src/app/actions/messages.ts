@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { sendText, sendMedia, sendAudio } from "@/lib/evolution";
 import { metaSendText, metaSendMedia } from "@/lib/meta-cloud";
-import { sendReopenTemplate } from "@/lib/meta-waba";
+import { sendTemplate } from "@/lib/meta-waba";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
@@ -192,33 +192,41 @@ export async function sendContactMedia(params: SendMediaParams) {
   }
 }
 
-/** Envia template de reativação para reabrir janela de 24h da Meta Cloud API */
+/** Envia um template WABA para reabrir a janela de 24h */
 export async function reopenConversation(params: {
   contactId: string;
   tenantId: string;
   phone: string;
-  contactName: string;
+  templateName: string;
+  templateParams?: string[]; // parâmetros posicionais do body
 }) {
   await requireRole(["sdr", "admin_placego", "corretor", "corretor_tenant"]);
-  const { contactId, tenantId, phone, contactName } = params;
+  const { contactId, tenantId, phone, templateName, templateParams = [] } = params;
 
   const wabaConfig = await getTenantWabaConfig(tenantId);
   if (!wabaConfig?.phoneNumberId || !wabaConfig?.accessToken) {
     return { error: "Credenciais Meta Cloud não configuradas para esta empresa" };
   }
 
+  const components = templateParams.length > 0
+    ? [{ type: "body", parameters: templateParams.map((t) => ({ type: "text", text: t })) }]
+    : [];
+
   try {
-    await sendReopenTemplate(wabaConfig.phoneNumberId, wabaConfig.accessToken, phone, contactName);
+    const res = await sendTemplate(wabaConfig.phoneNumberId, wabaConfig.accessToken, phone, templateName, "pt_BR", components);
+    const msgId = (res as any)?.messages?.[0]?.id ?? null;
 
     await db.insert(contactMessages).values({
       contactId,
       channel: "whatsapp",
       direction: "out",
-      content: "[Template de reativação enviado]",
-      ack: 0,
+      content: `[Template: ${templateName}]`,
+      whatsappMessageId: msgId,
+      ack: msgId ? 0 : null,
     });
 
     revalidatePath(`/sdr/contacts/${contactId}`);
+    revalidatePath(`/pipeline`);
     return { ok: true };
   } catch (err: any) {
     return { error: err.message ?? "Erro ao enviar template" };

@@ -23,11 +23,12 @@ interface Props {
   isMetaCloud?: boolean;
   windowIsOpen?: boolean;
   windowOpenUntil?: string | null;
+  approvedTemplates?: { name: string; params: number; bodyText: string }[];
 }
 
 export function ContactReply({
   contactId, contactPhone, contactEmail, contactName, defaultChannel, tenantSlug, tenantId, isMetaCloud,
-  windowIsOpen, windowOpenUntil,
+  windowIsOpen, windowOpenUntil, approvedTemplates = [],
 }: Props) {
   const [channel, setChannel] = useState(defaultChannel);
   const [message, setMessage] = useState("");
@@ -36,6 +37,8 @@ export function ContactReply({
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [isReopening, startReopenTransition] = useTransition();
   const [reopenError, setReopenError] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [templateParamValues, setTemplateParamValues] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -171,17 +174,29 @@ export function ContactReply({
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSend();
   }
 
+  const selectedTpl = approvedTemplates.find((t) => t.name === selectedTemplate);
+  const tplParamCount = selectedTpl?.params ?? 0;
+
+  function handleTemplateChange(name: string) {
+    setSelectedTemplate(name);
+    const tpl = approvedTemplates.find((t) => t.name === name);
+    setTemplateParamValues(Array(tpl?.params ?? 0).fill(""));
+    setReopenError(null);
+  }
+
   function handleReopen() {
-    if (!tenantId || !contactPhone) return;
+    if (!tenantId || !contactPhone || !selectedTemplate) return;
     setReopenError(null);
     startReopenTransition(async () => {
       const result = await reopenConversation({
         contactId,
         tenantId,
         phone: contactPhone,
-        contactName,
+        templateName: selectedTemplate,
+        templateParams: templateParamValues.filter(Boolean),
       });
       if (result?.error) setReopenError(result.error);
+      else { setSelectedTemplate(""); setTemplateParamValues([]); }
     });
   }
 
@@ -245,25 +260,75 @@ export function ContactReply({
         {/* Banner de janela Meta Cloud */}
         {isMetaCloud && channel === "whatsapp" && canSendWhatsApp && (
           windowIsOpen === false ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-amber-800">Janela de atendimento fechada</p>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  A Meta só permite mensagens livres em até 24h após a última resposta do contato.
-                  Para iniciar contato, envie um template aprovado.
-                </p>
-                {reopenError && <p className="text-xs text-red-600 mt-1">{reopenError}</p>}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-2.5">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-800">Janela de atendimento fechada</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    A Meta só permite mensagens livres em até 24h após a última resposta do contato.
+                    Selecione um template aprovado para iniciar contato.
+                  </p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={handleReopen}
-                disabled={isReopening}
-                className="flex items-center gap-1 text-xs font-semibold text-amber-700 border border-amber-300 rounded-md px-2.5 py-1.5 hover:bg-amber-100 transition-colors shrink-0 disabled:opacity-50"
-              >
-                {isReopening ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                Reabrir
-              </button>
+
+              {approvedTemplates.length === 0 ? (
+                <p className="text-xs text-amber-700 font-medium">
+                  Nenhum template aprovado disponível. Crie e aprove um template na WABA.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <select
+                    value={selectedTemplate}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                    className="w-full h-8 rounded-md border border-amber-300 bg-white px-2 text-xs text-amber-900 focus:outline-none"
+                  >
+                    <option value="">Selecione um template...</option>
+                    {approvedTemplates.map((t) => (
+                      <option key={t.name} value={t.name}>{t.name} {t.params > 0 ? `(${t.params} parâm.)` : ""}</option>
+                    ))}
+                  </select>
+
+                  {/* Preview do body do template */}
+                  {selectedTpl?.bodyText && (
+                    <p className="text-xs text-amber-800 bg-amber-100 rounded-md px-2.5 py-1.5 whitespace-pre-wrap">
+                      {selectedTpl.bodyText}
+                    </p>
+                  )}
+
+                  {/* Campos de parâmetros */}
+                  {tplParamCount > 0 && (
+                    <div className="space-y-1.5">
+                      {Array.from({ length: tplParamCount }, (_, i) => (
+                        <input
+                          key={i}
+                          type="text"
+                          value={templateParamValues[i] ?? ""}
+                          onChange={(e) => {
+                            const next = [...templateParamValues];
+                            next[i] = e.target.value;
+                            setTemplateParamValues(next);
+                          }}
+                          placeholder={`Parâmetro {{${i + 1}}}`}
+                          className="w-full h-8 rounded-md border border-amber-300 bg-white px-2 text-xs focus:outline-none"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {reopenError && <p className="text-xs text-red-600">{reopenError}</p>}
+
+                  <button
+                    type="button"
+                    onClick={handleReopen}
+                    disabled={isReopening || !selectedTemplate}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {isReopening ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    Enviar template
+                  </button>
+                </div>
+              )}
             </div>
           ) : windowIsOpen === true && windowLabel ? (
             <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 flex items-center gap-2">

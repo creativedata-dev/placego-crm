@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { NoteForm } from "./note-form";
 import { ContactTimeline } from "@/app/(app)/sdr/contacts/[id]/contact-timeline";
 import { ContactReply } from "@/app/(app)/sdr/contacts/[id]/contact-reply";
+import { listTemplates } from "@/lib/meta-waba";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Novo", contacted: "Em Contato", visiting: "Visita Agendada",
@@ -38,6 +39,8 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
       tenantSlug: tenants.slug,
       tenantId: tenants.id,
       whatsappProvider: tenants.whatsappProvider,
+      metaWabaId: tenants.metaWabaId,
+      metaAccessToken: tenants.metaAccessToken,
     })
     .from(leadAssignments)
     .innerJoin(leads, eq(leadAssignments.leadId, leads.id))
@@ -52,9 +55,24 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
   const isAdmin = user.role === "admin_placego" || user.role === "sdr";
   if (!isAdmin && row.assignment.brokerId !== user.id) notFound();
 
-  const { lead, assignment, brokerName, tenantSlug, tenantId: rowTenantId, whatsappProvider } = row;
+  const { lead, assignment, brokerName, tenantSlug, tenantId: rowTenantId, whatsappProvider, metaWabaId, metaAccessToken } = row;
   const instanceName = tenantSlug ? `placego-${tenantSlug}` : null;
   const isMetaCloud = whatsappProvider === "meta_cloud";
+
+  // Templates aprovados para o seletor de "Reabrir conversa"
+  let approvedTemplates: { name: string; params: number; bodyText: string }[] = [];
+  if (isMetaCloud && metaWabaId && metaAccessToken) {
+    try {
+      const tpls = await listTemplates(metaWabaId, metaAccessToken);
+      approvedTemplates = tpls
+        .filter((t) => t.status === "APPROVED")
+        .map((t) => {
+          const body = t.components.find((c: any) => c.type === "BODY") as any;
+          const paramCount = (body?.text?.match(/\{\{\d+\}\}/g) ?? []).length;
+          return { name: t.name, params: paramCount, bodyText: body?.text ?? "" };
+        });
+    } catch { /* sem templates */ }
+  }
 
   const [activities, allMessages, sdrAssignment] = await Promise.all([
     db
@@ -165,6 +183,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
             isMetaCloud={isMetaCloud}
             windowIsOpen={windowIsOpen}
             windowOpenUntil={windowOpenUntil?.toISOString() ?? null}
+            approvedTemplates={approvedTemplates}
           />
         </div>
 
