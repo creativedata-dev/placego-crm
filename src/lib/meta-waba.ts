@@ -54,7 +54,7 @@ export async function getPhoneStatus(
   token: string
 ): Promise<WabaPhoneStatus> {
   const data = await graph(
-    `/${phoneNumberId}?fields=display_phone_number,quality_rating,messaging_limit_tier,account_mode,verified_name,code_verification_status`,
+    `/${phoneNumberId}?fields=display_phone_number,quality_rating,messaging_limit_tier,account_mode,verified_name,code_verification_status,max_daily_conversation_per_phone`,
     token
   );
 
@@ -66,7 +66,7 @@ export async function getPhoneStatus(
     qualityRating: (data.quality_rating ?? "UNKNOWN") as WabaPhoneStatus["qualityRating"],
     tier,
     accountMode: (data.account_mode ?? "LIVE") as WabaPhoneStatus["accountMode"],
-    dailyLimit: TIER_LIMITS[tier] ?? 1000,
+    dailyLimit: data.max_daily_conversation_per_phone ?? TIER_LIMITS[tier] ?? 1000,
     verifiedName: data.verified_name ?? "",
     status: data.code_verification_status ?? "UNKNOWN",
   };
@@ -98,7 +98,7 @@ export async function getWabaHealth(
 
   // Busca números vinculados
   const phonesData = await graph(
-    `/${wabaId}/phone_numbers?fields=id,display_phone_number,quality_rating,messaging_limit_tier,account_mode,verified_name,code_verification_status,name_status`,
+    `/${wabaId}/phone_numbers?fields=id,display_phone_number,quality_rating,messaging_limit_tier,account_mode,verified_name,code_verification_status,name_status,max_daily_conversation_per_phone`,
     token
   );
 
@@ -110,7 +110,7 @@ export async function getWabaHealth(
       qualityRating: (p.quality_rating ?? "UNKNOWN") as WabaPhoneStatus["qualityRating"],
       tier,
       accountMode: (p.account_mode ?? "LIVE") as WabaPhoneStatus["accountMode"],
-      dailyLimit: TIER_LIMITS[tier] ?? 1000,
+      dailyLimit: p.max_daily_conversation_per_phone ?? TIER_LIMITS[tier] ?? 1000,
       verifiedName: p.verified_name ?? "",
       status: p.code_verification_status ?? "UNKNOWN",
       nameStatus: p.name_status ?? "",

@@ -17,7 +17,6 @@ export const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { title: "Imóveis", href: "/properties", icon: "Home" },
     { title: "Pipeline", href: "/pipeline", icon: "Kanban" },
     { title: "Relatórios", href: "/reports", icon: "BarChart3" },
-    { title: "Saúde WABA", href: "/waba", icon: "Wifi" },
   ],
   sdr: [
     { title: "Fila de Leads", href: "/sdr/queue", icon: "ListChecks" },
