@@ -12,7 +12,7 @@ import {
   createAutomation, updateAutomation, toggleAutomation, deleteAutomation,
   type AutomationPayload, type AutomationTrigger,
 } from "@/app/actions/automations";
-import { saveWelcomeConfig, saveOptoutKeywords, addOptout, removeOptout } from "@/app/actions/optout";
+import { saveWelcomeConfig, saveOptoutKeywords, saveWabaTemplates, addOptout, removeOptout } from "@/app/actions/optout";
 import type { MessageAutomation, ContactOptout } from "@/db/schema";
 
 // ── Constantes ─────────────────────────────────────────────────────────────────
@@ -56,9 +56,18 @@ const SYSTEM_TEMPLATES = [
     icon: "🔄",
     label: "Reabrir conversa",
     trigger: 'Corretor clica "Reabrir conversa" no pipeline',
-    description: 'Envia o template WABA iniciar_conversa para reabrir a janela de 24h com o contato.',
-    configurable: false,
-    note: 'Requer template "iniciar_conversa" aprovado na sua WABA.',
+    description: 'Envia o template WABA configurado para reabrir a janela de 24h. O parâmetro {{1}} é preenchido automaticamente com o nome do contato.',
+    configurable: true,
+    note: 'Template deve estar aprovado na sua WABA. Default: template_reativacao',
+  },
+  {
+    key: "distribution",
+    icon: "📱",
+    label: "Resposta automática ao corretor",
+    trigger: "Corretor responde fora do botão 'Pode sim!'",
+    description: "Quando o corretor envia qualquer mensagem fora do fluxo do botão, o CRM responde automaticamente com o template de distribuição.",
+    configurable: true,
+    note: "Se não configurado, envia texto livre orientando o corretor a contatar o SDR.",
   },
 ];
 
@@ -72,6 +81,8 @@ interface Props {
   isMetaCloud: boolean;
   autoWelcome: boolean;
   welcomeMessage: string;
+  reactivationTemplate: string;
+  distributionTemplate: string;
   optoutKeywords: string[];
   optouts: ContactOptout[];
 }
@@ -98,18 +109,33 @@ const EMPTY_FORM: FormState = {
 // ── Seção 1 — Templates do sistema ────────────────────────────────────────────
 
 function SystemTemplatesSection({
-  tenantId, autoWelcome, welcomeMessage, isMetaCloud,
-}: { tenantId: string; autoWelcome: boolean; welcomeMessage: string; isMetaCloud: boolean }) {
+  tenantId, autoWelcome, welcomeMessage, reactivationTemplate, distributionTemplate, isMetaCloud,
+}: {
+  tenantId: string; autoWelcome: boolean; welcomeMessage: string;
+  reactivationTemplate: string; distributionTemplate: string; isMetaCloud: boolean;
+}) {
   const [isPending, startTransition] = useTransition();
+  const [tplPending, startTplTransition] = useTransition();
   const [localAutoWelcome, setLocalAutoWelcome] = useState(autoWelcome);
   const [localMsg, setLocalMsg] = useState(welcomeMessage);
+  const [localReactivation, setLocalReactivation] = useState(reactivationTemplate);
+  const [localDistribution, setLocalDistribution] = useState(distributionTemplate);
   const [saved, setSaved] = useState(false);
+  const [tplSaved, setTplSaved] = useState(false);
 
   function handleSave() {
     startTransition(async () => {
       await saveWelcomeConfig(tenantId, { autoWelcome: localAutoWelcome, welcomeMessage: localMsg });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    });
+  }
+
+  function handleSaveTemplates() {
+    startTplTransition(async () => {
+      await saveWabaTemplates(tenantId, { reactivationTemplate: localReactivation, distributionTemplate: localDistribution });
+      setTplSaved(true);
+      setTimeout(() => setTplSaved(false), 2000);
     });
   }
 
@@ -189,6 +215,54 @@ function SystemTemplatesSection({
             )}
 
             {t.key === "welcome" && !isMetaCloud && (
+              <div className="border-t px-4 py-2 bg-muted/10">
+                <p className="text-xs text-muted-foreground">
+                  Disponível apenas para empresas com WhatsApp Meta Cloud API configurado.
+                </p>
+              </div>
+            )}
+
+            {/* Config inline de templates WABA (reopen + distribution compartilham o mesmo Save) */}
+            {(t.key === "reopen" || t.key === "distribution") && isMetaCloud && (
+              <div className="border-t px-4 pb-4 pt-3 bg-muted/20 space-y-3">
+                {t.key === "reopen" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Nome do template de reativação</Label>
+                    <Input
+                      value={localReactivation}
+                      onChange={(e) => setLocalReactivation(e.target.value)}
+                      placeholder="template_reativacao"
+                      className="h-8 text-xs font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      O parâmetro <span className="font-mono">{"{{"+"1"+"}}"}</span> é preenchido automaticamente com o nome do contato.
+                    </p>
+                  </div>
+                )}
+                {t.key === "distribution" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Nome do template de distribuição (resposta ao corretor)</Label>
+                    <Input
+                      value={localDistribution}
+                      onChange={(e) => setLocalDistribution(e.target.value)}
+                      placeholder="nome_do_template (deixe em branco para usar texto livre)"
+                      className="h-8 text-xs font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enviado quando o corretor responde fora do botão &quot;Pode sim!&quot;. Deixe em branco para usar mensagem de texto padrão.
+                    </p>
+                  </div>
+                )}
+                {t.key === "distribution" && (
+                  <Button size="sm" onClick={handleSaveTemplates} disabled={tplPending}>
+                    {tplPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                    {tplSaved ? "Salvo ✓" : "Salvar templates"}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {(t.key === "reopen" || t.key === "distribution") && !isMetaCloud && (
               <div className="border-t px-4 py-2 bg-muted/10">
                 <p className="text-xs text-muted-foreground">
                   Disponível apenas para empresas com WhatsApp Meta Cloud API configurado.
@@ -619,7 +693,7 @@ type Tab = "system" | "automations" | "optout";
 
 export function AutomationsManager({
   tenantId, tenantName, automations, approvedTemplates, isMetaCloud,
-  autoWelcome, welcomeMessage, optoutKeywords, optouts,
+  autoWelcome, welcomeMessage, reactivationTemplate, distributionTemplate, optoutKeywords, optouts,
 }: Props) {
   const [tab, setTab] = useState<Tab>("system");
   const [showForm, setShowForm] = useState(false);
@@ -661,6 +735,8 @@ export function AutomationsManager({
           tenantId={tenantId}
           autoWelcome={autoWelcome}
           welcomeMessage={welcomeMessage}
+          reactivationTemplate={reactivationTemplate}
+          distributionTemplate={distributionTemplate}
           isMetaCloud={isMetaCloud}
         />
       )}

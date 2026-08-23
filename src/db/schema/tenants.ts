@@ -23,6 +23,10 @@ export const tenants = pgTable("tenants", {
   // Enviar template de boas-vindas automaticamente ao criar novo contato
   metaAutoWelcome: boolean("meta_auto_welcome").notNull().default(true),
   metaWelcomeMessage: text("meta_welcome_message"),
+  // Template WABA para reabrir janela de 24h (corretor → lead)
+  metaReactivationTemplate: text("meta_reactivation_template"),
+  // Template WABA enviado ao corretor ao distribuir lead (notificação de novo lead)
+  metaDistributionTemplate: text("meta_distribution_template"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

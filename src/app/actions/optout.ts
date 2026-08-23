@@ -50,6 +50,23 @@ export async function saveWelcomeConfig(
   return { ok: true };
 }
 
+export async function saveWabaTemplates(
+  tenantId: string,
+  opts: { reactivationTemplate: string; distributionTemplate: string }
+) {
+  await requireRole(["admin_placego", "admin_tenant"]);
+  await db
+    .update(tenants)
+    .set({
+      metaReactivationTemplate: opts.reactivationTemplate.trim() || null,
+      metaDistributionTemplate: opts.distributionTemplate.trim() || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tenants.id, tenantId));
+  revalidatePath(`/tenants/${tenantId}/automations`);
+  return { ok: true };
+}
+
 export async function saveOptoutKeywords(tenantId: string, keywords: string[]) {
   await requireRole(["admin_placego", "admin_tenant"]);
   await db

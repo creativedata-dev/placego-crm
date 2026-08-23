@@ -353,16 +353,30 @@ async function handleWabaMessage(
         }
       }
 
-      const msg = sdrName
-        ? `Para mais informações sobre este lead, entre em contato com *${sdrName}*.`
-        : `Para mais informações, entre em contato com o SDR responsável pelo lead.`;
+      const distributionTemplate = (tenant as any).metaDistributionTemplate as string | null;
 
-      const { metaSendText } = await import("@/lib/meta-cloud");
-      metaSendText(
-        { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
-        fromPhone,
-        msg
-      ).catch((err) => console.error("[waba] erro ao enviar msg de orientacao ao corretor:", err));
+      if (distributionTemplate) {
+        // Reenvia o template de distribuição ao corretor (com dados do lead mais recente)
+        const { sendTemplate } = await import("@/lib/meta-waba");
+        sendTemplate(
+          tenant.metaPhoneNumberId,
+          tenant.metaAccessToken,
+          fromPhone,
+          distributionTemplate,
+          "pt_BR",
+          []
+        ).catch((err) => console.error("[waba] erro ao reenviar template distribuição ao corretor:", err));
+      } else {
+        const fallbackMsg = sdrName
+          ? `Para mais informações sobre este lead, entre em contato com *${sdrName}*.`
+          : `Para mais informações, entre em contato com o SDR responsável pelo lead.`;
+        const { metaSendText } = await import("@/lib/meta-cloud");
+        metaSendText(
+          { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
+          fromPhone,
+          fallbackMsg
+        ).catch((err) => console.error("[waba] erro ao enviar msg de orientacao ao corretor:", err));
+      }
     }
     return;
   }

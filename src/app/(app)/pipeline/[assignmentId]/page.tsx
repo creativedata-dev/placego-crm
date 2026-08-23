@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { NoteForm } from "./note-form";
 import { ContactTimeline } from "@/app/(app)/sdr/contacts/[id]/contact-timeline";
 import { ContactReply } from "@/app/(app)/sdr/contacts/[id]/contact-reply";
-import { listTemplates } from "@/lib/meta-waba";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Novo", contacted: "Em Contato", visiting: "Visita Agendada",
@@ -41,6 +40,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
       whatsappProvider: tenants.whatsappProvider,
       metaWabaId: tenants.metaWabaId,
       metaAccessToken: tenants.metaAccessToken,
+      metaReactivationTemplate: tenants.metaReactivationTemplate,
     })
     .from(leadAssignments)
     .innerJoin(leads, eq(leadAssignments.leadId, leads.id))
@@ -55,24 +55,18 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
   const isAdmin = user.role === "admin_placego" || user.role === "sdr";
   if (!isAdmin && row.assignment.brokerId !== user.id) notFound();
 
-  const { lead, assignment, brokerName, tenantSlug, tenantId: rowTenantId, whatsappProvider, metaWabaId, metaAccessToken } = row;
+  const { lead, assignment, brokerName, tenantSlug, tenantId: rowTenantId, whatsappProvider, metaWabaId, metaAccessToken, metaReactivationTemplate } = row;
   const instanceName = tenantSlug ? `placego-${tenantSlug}` : null;
   const isMetaCloud = whatsappProvider === "meta_cloud";
 
-  // Templates aprovados para o seletor de "Reabrir conversa"
-  let approvedTemplates: { name: string; params: number; bodyText: string }[] = [];
-  if (isMetaCloud && metaWabaId && metaAccessToken) {
-    try {
-      const tpls = await listTemplates(metaWabaId, metaAccessToken);
-      approvedTemplates = tpls
-        .filter((t) => t.status === "APPROVED")
-        .map((t) => {
-          const body = t.components.find((c: any) => c.type === "BODY") as any;
-          const paramCount = (body?.text?.match(/\{\{\d+\}\}/g) ?? []).length;
-          return { name: t.name, params: paramCount, bodyText: body?.text ?? "" };
-        });
-    } catch { /* sem templates */ }
-  }
+  // Template de reativação configurado na empresa (default: template_reativacao)
+  const reactivationTemplate = metaReactivationTemplate || "template_reativacao";
+
+  // No pipeline (corretor), passa o template fixo — {{1}} = nome do contato
+  // SDR pode usar seletor manual, mas corretor usa o template configurado pela empresa
+  const approvedTemplates: { name: string; params: number; bodyText: string }[] = isMetaCloud
+    ? [{ name: reactivationTemplate, params: 1, bodyText: "" }]
+    : [];
 
   const [activities, allMessages, sdrAssignment] = await Promise.all([
     db
@@ -184,6 +178,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
             windowIsOpen={windowIsOpen}
             windowOpenUntil={windowOpenUntil?.toISOString() ?? null}
             approvedTemplates={approvedTemplates}
+            defaultTemplateParams={isMetaCloud ? [lead.name ?? ""] : undefined}
           />
         </div>
 

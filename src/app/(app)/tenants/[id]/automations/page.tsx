@@ -46,6 +46,8 @@ export default async function AutomationsPage({ params }: { params: Promise<{ id
       isMetaCloud={tenant.whatsappProvider === "meta_cloud"}
       autoWelcome={tenant.metaAutoWelcome}
       welcomeMessage={tenant.metaWelcomeMessage ?? ""}
+      reactivationTemplate={(tenant as any).metaReactivationTemplate ?? ""}
+      distributionTemplate={(tenant as any).metaDistributionTemplate ?? ""}
       optoutKeywords={(tenant.metaOptoutKeywords as string[] | null) ?? ["PARAR", "STOP", "CANCELAR", "SAIR", "NAO QUERO", "NÃO QUERO"]}
       optouts={optouts}
     />

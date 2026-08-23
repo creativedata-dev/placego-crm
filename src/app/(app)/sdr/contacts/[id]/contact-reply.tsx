@@ -24,12 +24,16 @@ interface Props {
   windowIsOpen?: boolean;
   windowOpenUntil?: string | null;
   approvedTemplates?: { name: string; params: number; bodyText: string }[];
+  /** Valores padrão dos parâmetros do template (ex: [contactName] para {{1}}). Pré-preenche e bloqueia edição quando só há 1 template. */
+  defaultTemplateParams?: string[];
 }
 
 export function ContactReply({
   contactId, contactPhone, contactEmail, contactName, defaultChannel, tenantSlug, tenantId, isMetaCloud,
-  windowIsOpen, windowOpenUntil, approvedTemplates = [],
+  windowIsOpen, windowOpenUntil, approvedTemplates = [], defaultTemplateParams,
 }: Props) {
+  const singleTemplate = approvedTemplates.length === 1 ? approvedTemplates[0] : null;
+
   const [channel, setChannel] = useState(defaultChannel);
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -37,8 +41,10 @@ export function ContactReply({
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [isReopening, startReopenTransition] = useTransition();
   const [reopenError, setReopenError] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [templateParamValues, setTemplateParamValues] = useState<string[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(singleTemplate?.name ?? "");
+  const [templateParamValues, setTemplateParamValues] = useState<string[]>(
+    singleTemplate ? (defaultTemplateParams ?? Array(singleTemplate.params).fill("")) : []
+  );
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -274,29 +280,36 @@ export function ContactReply({
 
               {approvedTemplates.length === 0 ? (
                 <p className="text-xs text-amber-700 font-medium">
-                  Nenhum template aprovado disponível. Crie e aprove um template na WABA.
+                  Nenhum template configurado. Acesse Empresas → WABA para configurar o template de reativação.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  <select
-                    value={selectedTemplate}
-                    onChange={(e) => handleTemplateChange(e.target.value)}
-                    className="w-full h-8 rounded-md border border-amber-300 bg-white px-2 text-xs text-amber-900 focus:outline-none"
-                  >
-                    <option value="">Selecione um template...</option>
-                    {approvedTemplates.map((t) => (
-                      <option key={t.name} value={t.name}>{t.name} {t.params > 0 ? `(${t.params} parâm.)` : ""}</option>
-                    ))}
-                  </select>
+                  {/* Modo pipeline/corretor: template único fixo, sem seletor */}
+                  {singleTemplate ? (
+                    <p className="text-xs text-amber-800 font-mono bg-amber-100 rounded-md px-2.5 py-1.5">
+                      Template: <span className="font-semibold">{singleTemplate.name}</span>
+                    </p>
+                  ) : (
+                    <select
+                      value={selectedTemplate}
+                      onChange={(e) => handleTemplateChange(e.target.value)}
+                      className="w-full h-8 rounded-md border border-amber-300 bg-white px-2 text-xs text-amber-900 focus:outline-none"
+                    >
+                      <option value="">Selecione um template...</option>
+                      {approvedTemplates.map((t) => (
+                        <option key={t.name} value={t.name}>{t.name} {t.params > 0 ? `(${t.params} parâm.)` : ""}</option>
+                      ))}
+                    </select>
+                  )}
 
-                  {/* Preview do body do template */}
-                  {selectedTpl?.bodyText && (
+                  {/* Preview do body (só SDR com múltiplos templates) */}
+                  {!singleTemplate && selectedTpl?.bodyText && (
                     <p className="text-xs text-amber-800 bg-amber-100 rounded-md px-2.5 py-1.5 whitespace-pre-wrap">
                       {selectedTpl.bodyText}
                     </p>
                   )}
 
-                  {/* Campos de parâmetros */}
+                  {/* Campos de parâmetros — editáveis mesmo no modo fixo */}
                   {tplParamCount > 0 && (
                     <div className="space-y-1.5">
                       {Array.from({ length: tplParamCount }, (_, i) => (
@@ -325,7 +338,7 @@ export function ContactReply({
                     className="flex items-center gap-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-50"
                   >
                     {isReopening ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                    Enviar template
+                    Reabrir conversa
                   </button>
                 </div>
               )}
