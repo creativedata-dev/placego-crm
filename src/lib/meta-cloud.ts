@@ -129,11 +129,20 @@ export async function metaSendLeadDetails(
     ? new Date(lead.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : "—";
 
+  // Remove código do país (55) e formata como (DDD) NNNNN-NNNN
+  function formatBrPhone(raw: string): string {
+    const d = raw.replace(/\D/g, "");
+    const local = d.startsWith("55") && d.length >= 12 ? d.slice(2) : d;
+    if (local.length === 11) return `(${local.slice(0,2)}) ${local.slice(2,7)}-${local.slice(7)}`;
+    if (local.length === 10) return `(${local.slice(0,2)}) ${local.slice(2,6)}-${local.slice(6)}`;
+    return local;
+  }
+
   const text = [
     `🏠 *Dados do lead — PlaceGo CRM*`,
     ``,
     `👤 *Nome:* ${lead.name}`,
-    lead.phone ? `📱 *WhatsApp:* ${lead.phone}` : null,
+    lead.phone ? `📱 *WhatsApp:* ${formatBrPhone(lead.phone)}` : null,
     lead.email ? `✉️ *E-mail:* ${lead.email}` : null,
     lead.development ? `🏢 *Empreendimento:* ${lead.development}` : null,
     `📅 *Chegou em:* ${date}`,
