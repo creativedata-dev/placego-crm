@@ -12,7 +12,7 @@ import { ContactReply } from "@/app/(app)/sdr/contacts/[id]/contact-reply";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Novo", contacted: "Em Contato", visiting: "Visita Agendada",
-  proposal: "Proposta", won: "Ganho", lost: "Perdido",
+  proposal: "Em negociação", won: "Vendido", lost: "Perdido",
 };
 
 const ORIGIN_LABELS: Record<string, string> = {
