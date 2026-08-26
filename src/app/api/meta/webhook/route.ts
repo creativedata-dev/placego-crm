@@ -227,18 +227,20 @@ async function handleWabaMessage(
   // fromPhone vem do Meta como só dígitos (ex: 5511999998888)
   // users.phone pode estar formatado (ex: (11) 99999-8888) — normalizamos no SQL
   const normalizedFrom = fromPhone.replace(/\D/g, "");
-  // Sufixos para match: com 55, sem 55, sem 55 e sem 9 extra (fixo)
   const digitsNoCountry = normalizedFrom.replace(/^55/, "");
+  // Se veio com 11 dígitos (DDD+9+número), tenta também sem o nono (regiões sem 9 extra)
   const digitsNoNinth = digitsNoCountry.length === 11 ? digitsNoCountry.slice(0, 2) + digitsNoCountry.slice(3) : null;
+  // Se veio com 10 dígitos (DDD+número sem nono), tenta também com o nono inserido (banco pode ter com 9)
+  const digitsWithNinth = digitsNoCountry.length === 10 ? digitsNoCountry.slice(0, 2) + "9" + digitsNoCountry.slice(2) : null;
 
-  await dblog("3_phone", { fromPhone, normalizedFrom, digitsNoCountry, digitsNoNinth });
+  await dblog("3_phone", { fromPhone, normalizedFrom, digitsNoCountry, digitsNoNinth, digitsWithNinth });
 
   // Busca corretor comparando só os dígitos do phone salvo no banco
   const [brokerUser] = await db
     .select({ id: users.id, name: users.name, phone: users.phone, role: users.role })
     .from(users)
     .where(
-      sql`regexp_replace(${users.phone}, '[^0-9]', '', 'g') IN (${normalizedFrom}, ${digitsNoCountry}${digitsNoNinth ? sql`, ${digitsNoNinth}` : sql``})`
+      sql`regexp_replace(${users.phone}, '[^0-9]', '', 'g') IN (${normalizedFrom}, ${digitsNoCountry}${digitsNoNinth ? sql`, ${digitsNoNinth}` : sql``}${digitsWithNinth ? sql`, ${digitsWithNinth}` : sql``})`
     )
     .limit(1);
 
