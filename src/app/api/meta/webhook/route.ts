@@ -236,11 +236,15 @@ async function handleWabaMessage(
   await dblog("3_phone", { fromPhone, normalizedFrom, digitsNoCountry, digitsNoNinth, digitsWithNinth });
 
   // Busca corretor comparando só os dígitos do phone salvo no banco
+  // Restringe a roles de corretor para não confundir com admins/SDRs que têm telefone cadastrado
   const [brokerUser] = await db
     .select({ id: users.id, name: users.name, phone: users.phone, role: users.role })
     .from(users)
     .where(
-      sql`regexp_replace(${users.phone}, '[^0-9]', '', 'g') IN (${normalizedFrom}, ${digitsNoCountry}${digitsNoNinth ? sql`, ${digitsNoNinth}` : sql``}${digitsWithNinth ? sql`, ${digitsWithNinth}` : sql``})`
+      and(
+        sql`regexp_replace(${users.phone}, '[^0-9]', '', 'g') IN (${normalizedFrom}, ${digitsNoCountry}${digitsNoNinth ? sql`, ${digitsNoNinth}` : sql``}${digitsWithNinth ? sql`, ${digitsWithNinth}` : sql``})`,
+        sql`${users.role} IN ('corretor', 'corretor_tenant')`
+      )
     )
     .limit(1);
 
