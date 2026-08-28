@@ -21,18 +21,21 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ broker?: string }>;
 }) {
-  const user = await requireRole(["corretor", "corretor_tenant", "admin_placego", "sdr", "admin_tenant"]);
+  const user = await requireRole(["corretor", "corretor_tenant", "admin_placego", "sdr", "admin_tenant", "gestor_imobiliaria"]);
   const { broker: brokerFilter } = await searchParams;
 
   const isAdmin = user.role === "admin_placego" || user.role === "sdr" || user.role === "admin_tenant";
+  const isGestor = user.role === "gestor_imobiliaria";
 
-  // admin_tenant vê apenas corretores do seu tenant
-  const brokerList = isAdmin
+  // gestor_imobiliaria vê os corretores do seu tenant
+  const brokerList = isAdmin || isGestor
     ? await db
         .select({ id: users.id, name: users.name })
         .from(users)
         .where(
           user.role === "admin_tenant" && user.tenantId
+            ? and(inArray(users.role, ["corretor", "corretor_tenant"]), eq(users.tenantId, user.tenantId))
+            : isGestor && user.tenantId
             ? and(inArray(users.role, ["corretor", "corretor_tenant"]), eq(users.tenantId, user.tenantId))
             : inArray(users.role, ["corretor", "corretor_tenant"])
         )
@@ -48,14 +51,18 @@ export default async function PipelinePage({
             {isAdmin ? "Visão dos corretores" : "Seus leads em atendimento"}
           </p>
         </div>
-        {isAdmin && <PipelineBrokerFilter brokers={brokerList} selected={brokerFilter ?? ""} />}
+        {(isAdmin || isGestor) && <PipelineBrokerFilter brokers={brokerList} selected={brokerFilter ?? ""} />}
       </div>
       <Suspense fallback={<Loading />}>
         <PipelineData
-          isAdmin={isAdmin}
+          isAdmin={isAdmin || isGestor}
           userId={user.id}
           brokerFilter={brokerFilter}
-          tenantId={user.role === "admin_tenant" ? (user.tenantId ?? undefined) : undefined}
+          tenantId={
+            user.role === "admin_tenant" || isGestor
+              ? (user.tenantId ?? undefined)
+              : undefined
+          }
         />
       </Suspense>
     </div>

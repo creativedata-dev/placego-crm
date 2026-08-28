@@ -13,11 +13,13 @@ const ROLES_ALL = [
   { value: "corretor", label: "Corretor", desc: "Pipeline de vendas (interno PlaceGo)" },
   { value: "admin_tenant", label: "Admin Empresa", desc: "Painel da empresa parceira" },
   { value: "corretor_tenant", label: "Corretor Empresa", desc: "Pipeline de vendas (empresa parceira)" },
+  { value: "gestor_imobiliaria", label: "Gestor de Imobiliária", desc: "Recebe leads do SDR e distribui para seus corretores" },
 ];
 
 const ROLES_TENANT = [
   { value: "admin_tenant", label: "Admin Empresa", desc: "Acesso ao painel e gestão de usuários da empresa" },
   { value: "corretor_tenant", label: "Corretor Empresa", desc: "Pipeline de vendas" },
+  { value: "gestor_imobiliaria", label: "Gestor de Imobiliária", desc: "Recebe leads do SDR e distribui para seus corretores" },
 ];
 
 interface Props {
@@ -46,7 +48,7 @@ export function UserForm({ action, tenants, defaultValues, isAdminTenant = false
   const [phone, setPhone] = useState(defaultValues?.phone ?? "");
   const [loading, setLoading] = useState(false);
 
-  const needsTenant = !isAdminTenant && (role === "admin_tenant" || role === "corretor_tenant");
+  const needsTenant = !isAdminTenant && (role === "admin_tenant" || role === "corretor_tenant" || role === "gestor_imobiliaria");
   const canHaveTenant = !isAdminTenant && (needsTenant || role === "sdr" || role === "corretor");
 
   async function handleSubmit(e: React.FormEvent) {

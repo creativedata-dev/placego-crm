@@ -7,3 +7,4 @@ export * from "./channels";
 export * from "./tags";
 export * from "./push";
 export * from "./waba";
+export * from "./gestor";

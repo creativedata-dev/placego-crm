@@ -11,6 +11,7 @@ export interface BrokerMatch {
   creci: string | null;
   score: number;
   reasons: string[];
+  isGestor?: boolean;
 }
 
 export async function scoreBrokersForLead(leadId: string): Promise<BrokerMatch[]> {
@@ -39,7 +40,7 @@ export async function scoreBrokersForLead(leadId: string): Promise<BrokerMatch[]
     }
   }
 
-  // Buscar todos os corretores ativos com preferências
+  // Buscar corretores e gestores de imobiliária ativos com preferências
   const brokerRows = await db
     .select({
       user: users,
@@ -47,7 +48,7 @@ export async function scoreBrokersForLead(leadId: string): Promise<BrokerMatch[]
     })
     .from(users)
     .leftJoin(brokerPreferences, eq(users.id, brokerPreferences.brokerId))
-    .where(and(inArray(users.role, ["corretor", "corretor_tenant"]), eq(users.isActive, true)));
+    .where(and(inArray(users.role, ["corretor", "corretor_tenant", "gestor_imobiliaria"]), eq(users.isActive, true)));
 
   // Importar tenants para nome
   const { tenants } = await import("@/db/schema");
@@ -114,6 +115,7 @@ export async function scoreBrokersForLead(leadId: string): Promise<BrokerMatch[]
       creci: prefs?.creci ?? null,
       score,
       reasons,
+      isGestor: user.role === "gestor_imobiliaria",
     };
   });
 

@@ -172,6 +172,9 @@ function BrokerGroup({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm">{b.brokerName}</span>
+                  {b.isGestor && (
+                    <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-200">🏢 Imobiliária</Badge>
+                  )}
                   {b.creci && (
                     <span className="text-xs text-muted-foreground font-mono">{b.creci}</span>
                   )}

@@ -9,7 +9,8 @@ export type UserRole =
   | "sdr"
   | "corretor"
   | "admin_tenant"
-  | "corretor_tenant";
+  | "corretor_tenant"
+  | "gestor_imobiliaria";
 
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -48,4 +49,5 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   corretor: "Corretor",
   admin_tenant: "Admin Tenant",
   corretor_tenant: "Corretor Tenant",
+  gestor_imobiliaria: "Gestor de Imobiliária",
 };
