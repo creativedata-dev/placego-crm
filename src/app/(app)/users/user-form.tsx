@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { setUserPassword } from "@/app/actions/users";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ interface Props {
   action: (formData: FormData) => Promise<void>;
   tenants: { id: string; name: string }[];
   isAdminTenant?: boolean;
+  userId?: string; // presente somente na edição
   defaultValues?: {
     name: string;
     email: string;
@@ -36,16 +38,21 @@ interface Props {
   };
 }
 
-export function UserForm({ action, tenants, defaultValues, isAdminTenant = false }: Props) {
+export function UserForm({ action, tenants, defaultValues, isAdminTenant = false, userId }: Props) {
   const router = useRouter();
   const ROLES = isAdminTenant ? ROLES_TENANT : ROLES_ALL;
   const defaultRole = isAdminTenant ? "corretor_tenant" : "sdr";
+  const isEditing = !!defaultValues;
 
   const [name, setName] = useState(defaultValues?.name ?? "");
   const [email, setEmail] = useState(defaultValues?.email ?? "");
   const [role, setRole] = useState(defaultValues?.role ?? defaultRole);
   const [tenantId, setTenantId] = useState(defaultValues?.tenantId ?? "");
   const [phone, setPhone] = useState(defaultValues?.phone ?? "");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const needsTenant = !isAdminTenant && (role === "admin_tenant" || role === "corretor_tenant" || role === "gestor_imobiliaria");
@@ -60,6 +67,7 @@ export function UserForm({ action, tenants, defaultValues, isAdminTenant = false
     fd.set("role", role);
     fd.set("tenantId", tenantId);
     fd.set("phone", phone);
+    if (!isEditing && password) fd.set("password", password);
     await action(fd);
     setLoading(false);
     router.push("/users");
@@ -83,10 +91,58 @@ export function UserForm({ action, tenants, defaultValues, isAdminTenant = false
         <div className="space-y-2">
           <Label htmlFor="email">Email *</Label>
           <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="joao@placego.com.br" className={inputClass} />
-          {!defaultValues && (
-            <p className="text-xs text-muted-foreground">Uma senha temporária será gerada automaticamente.</p>
-          )}
         </div>
+
+        {/* Senha — campo na criação; seção separada na edição */}
+        {!isEditing ? (
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <input
+              id="password"
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Deixe em branco para gerar automaticamente"
+              className={inputClass}
+            />
+            <p className="text-xs text-muted-foreground">Mín. 6 caracteres. Se em branco, uma senha aleatória é gerada.</p>
+          </div>
+        ) : userId && (
+          <div className="space-y-2 rounded-lg border border-dashed p-3 bg-muted/20">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Redefinir senha</Label>
+            <div className="flex gap-2">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nova senha (mín. 6 caracteres)"
+                className={`flex-1 h-8 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50`}
+              />
+              <button type="button" onClick={() => setShowPassword((v) => !v)}
+                className="text-xs text-muted-foreground border rounded-md px-2.5 hover:bg-muted">
+                {showPassword ? "Ocultar" : "Ver"}
+              </button>
+              <button
+                type="button"
+                disabled={pwSaving || password.length < 6}
+                onClick={async () => {
+                  if (!userId || password.length < 6) return;
+                  setPwSaving(true); setPwMsg(null);
+                  const res = await setUserPassword(userId, password);
+                  setPwMsg(res.ok ? "Senha alterada com sucesso!" : (res.error ?? "Erro"));
+                  if (res.ok) setPassword("");
+                  setPwSaving(false);
+                }}
+                className="text-xs font-semibold bg-primary text-primary-foreground rounded-md px-3 h-8 disabled:opacity-50 hover:bg-primary/90 transition-colors"
+              >
+                {pwSaving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+            {pwMsg && (
+              <p className={`text-xs ${pwMsg.includes("sucesso") ? "text-green-600" : "text-red-600"}`}>{pwMsg}</p>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="phone">Telefone / WhatsApp</Label>

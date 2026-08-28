@@ -35,13 +35,14 @@ export async function createUser(formData: FormData) {
     tenantId = (formData.get("tenantId") as string) || null;
   }
 
+  const password = (formData.get("password") as string)?.trim() || null;
   const supabase = adminClient();
 
   // Criar no Auth
   let userId: string;
   const { data, error } = await supabase.auth.admin.createUser({
     email,
-    password: Math.random().toString(36).slice(-12) + "A1!",
+    password: password ?? (Math.random().toString(36).slice(-12) + "A1!"),
     email_confirm: true,
   });
 
@@ -115,6 +116,16 @@ export async function updateUser(id: string, formData: FormData) {
 
   revalidatePath("/users");
   redirect("/users");
+}
+
+export async function setUserPassword(id: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  await requireRole(["admin_placego", "admin_tenant"]);
+  if (!password || password.length < 6) return { ok: false, error: "Senha deve ter ao menos 6 caracteres" };
+
+  const supabase = adminClient();
+  const { error } = await supabase.auth.admin.updateUserById(id, { password });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 export async function toggleUserActive(id: string, isActive: boolean) {

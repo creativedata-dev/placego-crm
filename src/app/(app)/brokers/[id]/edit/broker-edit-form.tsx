@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { setUserPassword } from "@/app/actions/users";
 
 interface Props {
   action: (formData: FormData) => Promise<void>;
   tenants: { id: string; name: string }[];
+  userId?: string;
   broker: { name: string; email: string; phone: string; isActive: boolean; tenantId: string };
   prefs: {
     creci: string;
@@ -22,7 +24,7 @@ interface Props {
   propertyTypes: { value: string; label: string }[];
 }
 
-export function BrokerEditForm({ action, tenants, broker, prefs, propertyTypes }: Props) {
+export function BrokerEditForm({ action, tenants, userId, broker, prefs, propertyTypes }: Props) {
   const router = useRouter();
   const [name, setName] = useState(broker.name);
   const [email, setEmail] = useState(broker.email);
@@ -36,6 +38,10 @@ export function BrokerEditForm({ action, tenants, broker, prefs, propertyTypes }
   const [maxPrice, setMaxPrice] = useState(String(prefs.maxPrice));
   const [selectedTypes, setSelectedTypes] = useState<string[]>(prefs.propertyTypes);
   const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
 
   function toggleType(value: string) {
     setSelectedTypes((prev) =>
@@ -84,6 +90,43 @@ export function BrokerEditForm({ action, tenants, broker, prefs, propertyTypes }
           <input id="phone" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(16) 99999-9999" className={inputClass} />
           <p className="text-xs text-muted-foreground">Usado para notificações de novos leads via WhatsApp</p>
         </div>
+
+        {userId && (
+          <div className="space-y-2 rounded-lg border border-dashed p-3 bg-muted/20">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Redefinir senha</Label>
+            <div className="flex gap-2">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nova senha (mín. 6 caracteres)"
+                className="flex-1 h-8 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50"
+              />
+              <button type="button" onClick={() => setShowPassword((v) => !v)}
+                className="text-xs text-muted-foreground border rounded-md px-2.5 hover:bg-muted">
+                {showPassword ? "Ocultar" : "Ver"}
+              </button>
+              <button
+                type="button"
+                disabled={pwSaving || password.length < 6}
+                onClick={async () => {
+                  if (!userId || password.length < 6) return;
+                  setPwSaving(true); setPwMsg(null);
+                  const res = await setUserPassword(userId, password);
+                  setPwMsg(res.ok ? "Senha alterada com sucesso!" : (res.error ?? "Erro"));
+                  if (res.ok) setPassword("");
+                  setPwSaving(false);
+                }}
+                className="text-xs font-semibold bg-primary text-primary-foreground rounded-md px-3 h-8 disabled:opacity-50 hover:bg-primary/90 transition-colors"
+              >
+                {pwSaving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+            {pwMsg && (
+              <p className={`text-xs ${pwMsg.includes("sucesso") ? "text-green-600" : "text-red-600"}`}>{pwMsg}</p>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <Checkbox id="isActive" checked={isActive} onCheckedChange={(v) => setIsActive(!!v)} />

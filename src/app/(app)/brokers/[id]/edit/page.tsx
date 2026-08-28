@@ -45,6 +45,7 @@ export default async function EditBrokerPage({ params }: { params: Promise<{ id:
       <BrokerEditForm
         action={action}
         tenants={tenantList}
+        userId={id}
         broker={{
           name: broker.name,
           email: broker.email,

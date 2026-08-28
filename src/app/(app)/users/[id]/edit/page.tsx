@@ -38,6 +38,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         tenants={tenantList}
         defaultValues={user}
         isAdminTenant={currentUser.role === "admin_tenant"}
+        userId={id}
       />
     </div>
   );
