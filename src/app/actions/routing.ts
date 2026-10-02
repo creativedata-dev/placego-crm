@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { leads, leadAssignments, users, tenants, sdrAssignments } from "@/db/schema";
+import { leads, leadAssignments, users, sdrAssignments } from "@/db/schema";
 import { eq, inArray, and, notInArray } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { sendLeadAssignedEmail } from "@/lib/email";
-import { wpNotifyBrokerNewLead } from "@/lib/whatsapp";
+import { wpNotifyBrokerNewLead, getBrokerWhatsAppConfig } from "@/lib/whatsapp";
 import { notifyBrokerNewLead as pushNotifyBroker } from "@/lib/push";
 import { fireAutomation } from "@/lib/automation-engine";
 
@@ -78,23 +78,10 @@ export async function assignLeadToBrokers(
   ]);
   const assignmentByBroker = new Map(assignments.map((a) => [a.brokerId, a.id]));
 
-  // Busca configuração WhatsApp do tenant
-  let wpConfig: import("@/lib/whatsapp").TenantWhatsAppConfig = { provider: "evolution" };
-  if (contact?.tenantId) {
-    const [tenant] = await db
-      .select({ slug: tenants.slug, whatsappProvider: tenants.whatsappProvider, metaPhoneNumberId: tenants.metaPhoneNumberId, metaAccessToken: tenants.metaAccessToken })
-      .from(tenants)
-      .where(eq(tenants.id, contact.tenantId))
-      .limit(1);
-    if (tenant) {
-      wpConfig = {
-        provider: (tenant.whatsappProvider ?? "evolution") as "evolution" | "meta_cloud",
-        evolutionInstance: `placego-${tenant.slug}`,
-        metaPhoneNumberId: tenant.metaPhoneNumberId,
-        metaAccessToken: tenant.metaAccessToken,
-      };
-    }
-  }
+  // Busca configuração WhatsApp do canal do CORRETOR (pode ser diferente do canal usado com o contato)
+  const wpConfig = contact?.tenantId
+    ? await getBrokerWhatsAppConfig(contact.tenantId)
+    : { provider: "evolution" as const };
 
   // Push notification para cada corretor com dados do lead
   brokers.forEach((broker) => {

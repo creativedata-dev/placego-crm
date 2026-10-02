@@ -37,6 +37,12 @@ export default async function CompanyChannelsPage({
       metaWabaId={tenant.metaWabaId ?? ""}
       metaVerifyToken={tenant.metaVerifyToken ?? ""}
       metaAutoWelcome={tenant.metaAutoWelcome ?? true}
+      metaCoexistence={tenant.metaCoexistence ?? false}
+      brokerWhatsappProvider={(tenant.brokerWhatsappProvider ?? "same_as_contact") as "same_as_contact" | "evolution" | "meta_cloud"}
+      brokerMetaPhoneNumberId={tenant.brokerMetaPhoneNumberId ?? ""}
+      brokerMetaAccessToken={tenant.brokerMetaAccessToken ?? ""}
+      brokerMetaWabaId={tenant.brokerMetaWabaId ?? ""}
+      brokerEvolutionInstance={tenant.brokerEvolutionInstance ?? ""}
       channels={channels}
       appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ""}
     />

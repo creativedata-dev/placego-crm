@@ -12,9 +12,11 @@ interface Props {
   companyId: string;
   instanceName: string;
   channel: CompanyChannel | null;
+  /** Tipo de canal salvo em company_channels — "whatsapp" (recebimento) ou "whatsapp_broker" (envio ao corretor). */
+  channelType?: "whatsapp" | "whatsapp_broker";
 }
 
-export function WhatsAppConnector({ companyId, instanceName, channel }: Props) {
+export function WhatsAppConnector({ companyId, instanceName, channel, channelType = "whatsapp" }: Props) {
   const [status, setStatus] = useState<"unknown" | "connecting" | "connected" | "disconnected">("unknown");
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [welcome, setWelcome] = useState((channel?.welcomeMessage as string) ?? "");
@@ -49,7 +51,7 @@ export function WhatsAppConnector({ companyId, instanceName, channel }: Props) {
     setLoading(true);
     await createEvolutionInstance(instanceName);
     await registerEvolutionWebhook(instanceName);
-    await saveChannelConfig(companyId, "whatsapp", { instanceName });
+    await saveChannelConfig(companyId, channelType, { instanceName });
     setStatus("connecting");
     setTimeout(checkStatus, 2000);
   }
@@ -63,7 +65,8 @@ export function WhatsAppConnector({ companyId, instanceName, channel }: Props) {
 
   async function handleSave() {
     setSaving(true);
-    await saveChannelConfig(companyId, "whatsapp", { instanceName }, { welcomeMessage: welcome });
+    const extras = channelType === "whatsapp" ? { welcomeMessage: welcome } : undefined;
+    await saveChannelConfig(companyId, channelType, { instanceName }, extras);
     setSaving(false);
   }
 
@@ -109,20 +112,22 @@ export function WhatsAppConnector({ companyId, instanceName, channel }: Props) {
         </div>
       )}
 
-      {/* Mensagem de boas-vindas — sempre visível */}
-      <div className="space-y-2">
-        <Label className="text-xs font-medium">Mensagem de boas-vindas (opcional)</Label>
-        <textarea
-          value={welcome}
-          onChange={(e) => setWelcome(e.target.value)}
-          rows={3}
-          placeholder="Olá! Recebemos sua mensagem. Em breve um consultor entrará em contato."
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/50 resize-none"
-        />
-        <p className="text-xs text-muted-foreground">
-          Enviada automaticamente para quem entrar em contato pelo WhatsApp pela primeira vez.
-        </p>
-      </div>
+      {/* Mensagem de boas-vindas — só se aplica ao canal de recebimento */}
+      {channelType === "whatsapp" && (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Mensagem de boas-vindas (opcional)</Label>
+          <textarea
+            value={welcome}
+            onChange={(e) => setWelcome(e.target.value)}
+            rows={3}
+            placeholder="Olá! Recebemos sua mensagem. Em breve um consultor entrará em contato."
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/50 resize-none"
+          />
+          <p className="text-xs text-muted-foreground">
+            Enviada automaticamente para quem entrar em contato pelo WhatsApp pela primeira vez.
+          </p>
+        </div>
+      )}
 
       {/* Ações */}
       <div className="flex gap-2 flex-wrap">

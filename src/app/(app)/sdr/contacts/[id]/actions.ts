@@ -28,7 +28,7 @@ export async function sendWelcomeTemplateAction(
       .where(eq(tenants.id, contact.tenantId))
       .limit(1);
 
-    if (!tenant || tenant.provider !== "meta_cloud") return { ok: false, error: "Empresa não usa Meta Cloud API" };
+    if (!tenant || tenant.provider !== "meta_cloud") return { ok: false, error: "Canal do contato desta empresa não usa Meta Cloud API" };
     if (!tenant.phoneNumberId || !tenant.accessToken) return { ok: false, error: "Credenciais WABA não configuradas" };
 
     await sendWelcomeTemplate(tenant.phoneNumberId, tenant.accessToken, contact.phone, contact.name ?? "");

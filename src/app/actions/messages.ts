@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { contactMessages, tenants } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { contactMessages } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { sendText, sendMedia, sendAudio } from "@/lib/evolution";
 import { metaSendText, metaSendMedia } from "@/lib/meta-cloud";
 import { sendTemplate } from "@/lib/meta-waba";
+import { getContactWhatsAppConfig } from "@/lib/whatsapp";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
@@ -53,12 +53,10 @@ interface SendMessageParams {
 }
 
 async function getTenantWabaConfig(tenantId: string) {
-  const [t] = await db
-    .select({ provider: tenants.whatsappProvider, phoneNumberId: tenants.metaPhoneNumberId, accessToken: tenants.metaAccessToken })
-    .from(tenants)
-    .where(eq(tenants.id, tenantId))
-    .limit(1);
-  return t ?? null;
+  // Canal usado na CONVERSA com o contato/lead (SDR ou corretor conversando com o cliente),
+  // independente do canal usado só para notificar a distribuição ao corretor.
+  const config = await getContactWhatsAppConfig(tenantId);
+  return { provider: config.provider, phoneNumberId: config.metaPhoneNumberId, accessToken: config.metaAccessToken };
 }
 
 export async function sendContactMessage(params: SendMessageParams) {

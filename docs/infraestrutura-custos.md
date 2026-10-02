@@ -1,7 +1,9 @@
 # PlaceGo CRM — Infraestrutura e Custos
 
-**Versão:** 1.0 — Junho 2026  
+**Versão:** 1.1 — Setembro 2026  
 **Atualização:** a cada mudança de plano ou novo serviço
+
+> **2026-09-23:** projeto Supabase original (`jebogtuiqnjyyrtzowtr`) foi perdido — estava sob a conta de um colaborador desligado e o domínio parou de resolver (indício de projeto deletado, sem backup disponível). Como nenhum dado era crítico, o banco foi recriado do zero em um projeto novo, sob conta própria. Ver seção 2 atualizada abaixo.
 
 ---
 
@@ -22,10 +24,11 @@
 
 ---
 
-### 2. Supabase — Banco de dados e Auth
+### 2. Supabase — Banco de dados, Auth e Storage
 **URL:** supabase.com  
-**Projeto:** jebogtuiqnjyyrtzowtr (CRM PlaceGo)  
-**Região:** não especificada  
+**Projeto:** bkkdfobdjnqcastmtrtq (CRM PlaceGo) — recriado em 2026-09-23  
+**Organização:** creativedata-dev's Org  
+**Região:** South America (São Paulo)  
 **Plano:** Free  
 
 | Plano | Custo | Limite |
@@ -34,7 +37,16 @@
 | Pro | $25/mês | 8GB banco, 100GB storage, MAU ilimitado |
 
 **Quando migrar para Pro:** ao ultrapassar 500MB de banco ou 50k usuários auth.  
-**Atenção:** projeto Free pausa após 1 semana sem acesso — monitorar.
+**Atenção:** projeto Free pausa após 1 semana sem acesso — monitorar e evitar repetir o incidente de 2026-09-23 (projeto anterior ficou órfão sob conta de ex-colaborador e foi perdido).
+
+**Projeto anterior (perdido):** `jebogtuiqnjyyrtzowtr` — não resolve mais DNS, considerado deletado. Nenhum backup existia; dados recriados do zero.
+
+**Configuração do projeto atual:**
+- Connection string: **Transaction Pooler** (porta 6543, host `aws-0-sa-east-1.pooler.supabase.com`) — conexão direta (5432) não funciona em rede IPv4-only.
+- Chaves API no formato novo (`sb_publishable_...` / `sb_secret_...`), não mais JWT legado.
+- Bucket Storage: `contact-media` (público) — mídias recebidas/enviadas via WhatsApp.
+- Schema aplicado via `npx drizzle-kit push` direto no banco vazio (funcionou sem o bug de introspecção/RLS documentado no CLAUDE.md, que só ocorre contra schema pré-existente).
+- Usuário admin seed: `admin@placego.com.br` (senha alterada após o primeiro login).
 
 ---
 
@@ -164,12 +176,16 @@ TXT @  forward-email=inbound@crm.placego.com.br
 
 ## Ações pendentes
 
+- [ ] **Atualizar env vars do Supabase na Vercel** (URL, publishable key, secret key, DATABASE_URL) com os valores do projeto novo `bkkdfobdjnqcastmtrtq` — produção ainda pode estar apontando para o projeto perdido
+- [ ] Recriar tenants/empresas reais no banco novo (zerado) e reconectar instâncias Evolution API por tenant
+- [ ] Recolar credenciais Meta Cloud API por empresa que já usava esse provider
 - [ ] Adicionar cartão no Railway antes de esgotar crédito trial
 - [ ] Configurar registros MX/TXT no Registro.br (Forwardemail)
 - [ ] Publicar App Meta para receber leads reais (aprovação Meta)
 - [ ] Migrar Vercel para Pro ao onboarding primeiro cliente
 - [ ] Avaliar migração DNS para Cloudflare (Email Routing gratuito, CDN)
 - [ ] Configurar alertas de uso no Supabase e Resend
+- [ ] Definir política de acesso a contas de infra: nunca deixar um serviço crítico só na conta pessoal de um colaborador — usar organização/conta compartilhada com múltiplos owners
 
 ---
 
@@ -178,7 +194,7 @@ TXT @  forward-email=inbound@crm.placego.com.br
 | Serviço | Acesso | Observação |
 |---|---|---|
 | Vercel | creative-data-projects | Via GitHub OAuth |
-| Supabase | projeto jebogtuiqnjyyrtzowtr | Guardar service role key |
+| Supabase | projeto bkkdfobdjnqcastmtrtq | Conta própria (creativedata-dev's Org) — guardar secret key e senha do banco em gerenciador de senhas, nunca só na conta de um único colaborador |
 | Railway | empowering-elegance | Adicionar cartão |
 | Resend | synapseiqadm | API key no .env |
 | Evolution API | placego-evolution-2026 | Nunca expor publicamente |

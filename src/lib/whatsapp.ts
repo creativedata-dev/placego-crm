@@ -1,11 +1,18 @@
 // Wrapper de WhatsApp — roteia para Evolution API ou Meta Cloud API
-// conforme o whatsapp_provider configurado no tenant.
-// O código de produto (routing.ts, messages.ts) deve usar apenas este módulo.
+// conforme o provider configurado no tenant, por PAPEL:
+//   - canal "contato": usado pelo SDR para conversar com o contato/lead (fila, qualificação)
+//   - canal "corretor": usado para notificar/conversar com o corretor na distribuição do lead
+// Os dois podem apontar para provedores e credenciais diferentes.
+// O código de produto (routing.ts, messages.ts, contact-ingestion.ts) deve usar apenas este módulo.
 
+import { db } from "@/db";
+import { tenants } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { notifyBrokerNewLead as evolutionNotifyBroker, sendText as evolutionSendText } from "./evolution";
 import { metaNotifyBrokerNewLead, metaSendText, metaVerifyCredentials } from "./meta-cloud";
 
 export type WhatsAppProvider = "evolution" | "meta_cloud";
+export type BrokerWhatsAppProvider = "same_as_contact" | WhatsAppProvider;
 
 export interface TenantWhatsAppConfig {
   provider: WhatsAppProvider;
@@ -14,6 +21,70 @@ export interface TenantWhatsAppConfig {
   // Meta Cloud
   metaPhoneNumberId?: string | null;
   metaAccessToken?: string | null;
+}
+
+/** Resolve a config do canal usado para falar com o CONTATO/LEAD (papel do SDR). */
+export async function getContactWhatsAppConfig(tenantId: string): Promise<TenantWhatsAppConfig> {
+  const [tenant] = await db
+    .select({
+      slug: tenants.slug,
+      provider: tenants.whatsappProvider,
+      metaPhoneNumberId: tenants.metaPhoneNumberId,
+      metaAccessToken: tenants.metaAccessToken,
+    })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1);
+
+  if (!tenant) return { provider: "evolution" };
+
+  return {
+    provider: (tenant.provider ?? "evolution") as WhatsAppProvider,
+    evolutionInstance: `placego-${tenant.slug}`,
+    metaPhoneNumberId: tenant.metaPhoneNumberId,
+    metaAccessToken: tenant.metaAccessToken,
+  };
+}
+
+/** Resolve a config do canal usado para notificar/conversar com o CORRETOR (distribuição do lead). */
+export async function getBrokerWhatsAppConfig(tenantId: string): Promise<TenantWhatsAppConfig> {
+  const [tenant] = await db
+    .select({
+      slug: tenants.slug,
+      brokerProvider: tenants.brokerWhatsappProvider,
+      brokerMetaPhoneNumberId: tenants.brokerMetaPhoneNumberId,
+      brokerMetaAccessToken: tenants.brokerMetaAccessToken,
+      brokerEvolutionInstance: tenants.brokerEvolutionInstance,
+      provider: tenants.whatsappProvider,
+      metaPhoneNumberId: tenants.metaPhoneNumberId,
+      metaAccessToken: tenants.metaAccessToken,
+    })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1);
+
+  if (!tenant) return { provider: "evolution" };
+
+  const brokerProvider = (tenant.brokerProvider ?? "same_as_contact") as BrokerWhatsAppProvider;
+
+  if (brokerProvider === "same_as_contact") {
+    return {
+      provider: (tenant.provider ?? "evolution") as WhatsAppProvider,
+      evolutionInstance: `placego-${tenant.slug}`,
+      metaPhoneNumberId: tenant.metaPhoneNumberId,
+      metaAccessToken: tenant.metaAccessToken,
+    };
+  }
+
+  // Instância Evolution dedicada ao corretor, quando configurada — senão reusa a do contato (legado).
+  const evolutionInstance = tenant.brokerEvolutionInstance || `placego-${tenant.slug}`;
+
+  return {
+    provider: brokerProvider,
+    evolutionInstance,
+    metaPhoneNumberId: tenant.brokerMetaPhoneNumberId,
+    metaAccessToken: tenant.brokerMetaAccessToken,
+  };
 }
 
 export async function wpNotifyBrokerNewLead(

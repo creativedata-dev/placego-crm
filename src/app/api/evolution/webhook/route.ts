@@ -94,6 +94,15 @@ export async function POST(request: Request) {
     if (data?.messageType === "protocolMessage") return NextResponse.json({ ok: true });
     if (data?.messageType === "reactionMessage") return NextResponse.json({ ok: true });
 
+    // Instância dedicada ao canal do CORRETOR (envio) — não gera contato/lead.
+    // Evita criar contatos fantasma (tenantId null) quando o corretor responde por esse número.
+    const [brokerTenant] = await db
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(eq(tenants.brokerEvolutionInstance, instance ?? ""))
+      .limit(1);
+    if (brokerTenant) return NextResponse.json({ ok: true });
+
     const slug = instance?.replace("placego-", "");
     if (!slug) return NextResponse.json({ ok: true });
 
@@ -102,6 +111,7 @@ export async function POST(request: Request) {
       .from(tenants)
       .where(eq(tenants.slug, slug))
       .limit(1);
+    if (!tenant) return NextResponse.json({ ok: true });
 
     const remoteJid = data?.key?.remoteJid ?? "";
     const phone = remoteJid.replace("@s.whatsapp.net", "").replace("@c.us", "");
@@ -164,7 +174,7 @@ export async function POST(request: Request) {
       phone,
       origin: "whatsapp",
       channel: "whatsapp",
-      tenantId: tenant?.id ?? null,
+      tenantId: tenant.id,
       qualityScore: 65,
       messageContent: messageText,
       mediaUrl: mediaUrl ?? undefined,

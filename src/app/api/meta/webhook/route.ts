@@ -142,11 +142,23 @@ async function handleWabaPayload(body: any) {
       const phoneNumberId = value.metadata?.phone_number_id;
       if (!phoneNumberId) continue;
 
-      const [tenant] = await db
+      // Tenta primeiro o canal "contato" (padrão); se não achar, tenta o canal "corretor"
+      // — os dois podem apontar para números Meta Cloud diferentes.
+      let [tenant] = await db
         .select()
         .from(tenants)
         .where(eq(tenants.metaPhoneNumberId, phoneNumberId))
         .limit(1);
+      let isBrokerChannel = false;
+
+      if (!tenant) {
+        [tenant] = await db
+          .select()
+          .from(tenants)
+          .where(eq(tenants.brokerMetaPhoneNumberId, phoneNumberId))
+          .limit(1);
+        isBrokerChannel = true;
+      }
 
       if (!tenant) continue;
 
@@ -155,7 +167,7 @@ async function handleWabaPayload(body: any) {
       }
 
       for (const msg of value.messages ?? []) {
-        await handleWabaMessage(msg, value.contacts?.[0], tenant, phoneNumberId);
+        await handleWabaMessage(msg, value.contacts?.[0], tenant, phoneNumberId, isBrokerChannel);
       }
     }
   }
@@ -179,15 +191,18 @@ async function handleWabaMessage(
   msg: any,
   metaContact: any,
   tenant: typeof tenants.$inferSelect,
-  phoneNumberId: string
+  phoneNumberId: string,
+  isBrokerChannel: boolean = false
 ) {
   const fromPhone = msg.from;
   const messageId = msg.id;
+  // Credenciais do canal onde a mensagem chegou — contato e corretor podem usar WABAs diferentes
+  const channelAccessToken = isBrokerChannel ? tenant.brokerMetaAccessToken : tenant.metaAccessToken;
 
-  await dblog("1_received", { fromPhone, type: msg.type, phoneNumberId, tenantName: tenant.name });
+  await dblog("1_received", { fromPhone, type: msg.type, phoneNumberId, tenantName: tenant.name, isBrokerChannel });
 
-  if (tenant.metaAccessToken) {
-    markAsRead(phoneNumberId, tenant.metaAccessToken, messageId).catch(() => {});
+  if (channelAccessToken) {
+    markAsRead(phoneNumberId, channelAccessToken, messageId).catch(() => {});
   }
 
   const text = extractWabaText(msg);
@@ -259,9 +274,9 @@ async function handleWabaMessage(
           ? (msg.interactive?.button_reply?.title ?? "").toLowerCase().includes("pode sim")
           : normalized.includes("PODE SIM");
 
-    await dblog("5_isPodeSim", { isPodeSim, msgType: msg.type, interactiveType: msg.interactive?.type, buttonTitle: msg.interactive?.button_reply?.title, metaPhoneOk: !!tenant.metaPhoneNumberId });
+    await dblog("5_isPodeSim", { isPodeSim, msgType: msg.type, interactiveType: msg.interactive?.type, buttonTitle: msg.interactive?.button_reply?.title, metaPhoneOk: !!phoneNumberId });
 
-    if (isPodeSim && tenant.metaPhoneNumberId && tenant.metaAccessToken) {
+    if (isPodeSim && phoneNumberId && channelAccessToken) {
       // Busca o lead assignment mais recente desse corretor (qualquer status exceto arquivado)
       const [assignment] = await db
         .select({
@@ -312,7 +327,7 @@ async function handleWabaMessage(
         if (contact) {
           await dblog("8_sending", { to: fromPhone, brokerName: brokerUser.name });
           await metaSendLeadDetails(
-            { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
+            { phoneNumberId, accessToken: channelAccessToken },
             fromPhone,
             brokerUser.name ?? "",
             {
@@ -331,7 +346,7 @@ async function handleWabaMessage(
     }
 
     // Outra mensagem de corretor — orienta a falar com o SDR do lead
-    if (tenant.metaPhoneNumberId && tenant.metaAccessToken) {
+    if (phoneNumberId && channelAccessToken) {
       // Busca o lead assignment mais recente para achar o SDR qualificador
       const [recentAssignment] = await db
         .select({ leadId: leadAssignments.leadId })
@@ -365,8 +380,8 @@ async function handleWabaMessage(
         // Reenvia o template de distribuição ao corretor (com dados do lead mais recente)
         const { sendTemplate } = await import("@/lib/meta-waba");
         sendTemplate(
-          tenant.metaPhoneNumberId,
-          tenant.metaAccessToken,
+          phoneNumberId,
+          channelAccessToken,
           fromPhone,
           distributionTemplate,
           "pt_BR",
@@ -378,7 +393,7 @@ async function handleWabaMessage(
           : `Para mais informações, entre em contato com o SDR responsável pelo lead.`;
         const { metaSendText } = await import("@/lib/meta-cloud");
         metaSendText(
-          { phoneNumberId: tenant.metaPhoneNumberId, accessToken: tenant.metaAccessToken },
+          { phoneNumberId, accessToken: channelAccessToken },
           fromPhone,
           fallbackMsg
         ).catch((err) => console.error("[waba] erro ao enviar msg de orientacao ao corretor:", err));
@@ -386,6 +401,10 @@ async function handleWabaMessage(
     }
     return;
   }
+
+  // O canal do corretor só recebe mensagens de corretores reconhecidos (tratado acima).
+  // Um remetente desconhecido nesse número não deve virar contato/lead novo.
+  if (isBrokerChannel) return;
 
   const contactName = metaContact?.profile?.name ?? fromPhone;
 

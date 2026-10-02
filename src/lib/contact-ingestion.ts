@@ -135,6 +135,7 @@ export async function ingestContactMessage(params: IngestParams) {
           .catch(() => {});
 
         // Enviar mensagem de boas-vindas (texto livre — janela acaba de abrir)
+        // Sempre no canal "contato" — é o número usado pelo SDR para falar com o lead.
         if (tenant.provider === "meta_cloud" && tenant.autoWelcome && tenant.phoneNumberId && tenant.accessToken) {
           const msg = tenant.welcomeMessage ?? DEFAULT_WELCOME_MESSAGE;
           sendText(tenant.phoneNumberId, tenant.accessToken, phone, msg).then(async (res) => {

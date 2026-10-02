@@ -10,6 +10,7 @@ import {
   Phone, Flame, Zap, ExternalLink, AlertTriangle,
 } from "lucide-react";
 import { WabaTemplatesPanel } from "./waba-templates-panel";
+import { EmbeddedSignupButton } from "./embedded-signup-button";
 
 type Tab = "config" | "health" | "templates" | "debug";
 
@@ -324,11 +325,13 @@ interface Props {
   metaWabaId: string;
   metaVerifyToken: string;
   metaAutoWelcome: boolean;
+  metaCoexistence?: boolean;
 }
 
 export function MetaCloudProviderCard({
   tenantId, currentProvider, metaPhoneNumberId, metaAccessToken,
   metaWabaId, metaVerifyToken, metaAutoWelcome: initialAutoWelcome,
+  metaCoexistence,
 }: Props) {
   const [tab, setTab] = useState<Tab>("config");
   const [phoneId, setPhoneId] = useState(metaPhoneNumberId);
@@ -338,6 +341,7 @@ export function MetaCloudProviderCard({
   const [autoWelcome, setAutoWelcome] = useState(initialAutoWelcome);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [showManual, setShowManual] = useState(!metaPhoneNumberId);
 
   function handleSave() {
     setResult(null);
@@ -380,6 +384,33 @@ export function MetaCloudProviderCard({
       {/* Configuração */}
       {tab === "config" && (
         <div className="space-y-4">
+          {metaCoexistence && (
+            <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <CheckCircle className="h-4 w-4 shrink-0" />
+              Conectado com coexistência — o WhatsApp Business App do celular continua funcionando normalmente.
+            </div>
+          )}
+
+          <div className="border rounded-xl p-4 space-y-3">
+            <div>
+              <p className="font-semibold text-sm">Conectar número (recomendado)</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Login com o Facebook da empresa. Se o número já estiver ativo no WhatsApp Business App, a Meta oferece manter os dois conectados (coexistência) — sem perder o histórico.
+              </p>
+            </div>
+            <EmbeddedSignupButton tenantId={tenantId} onConnected={() => window.location.reload()} />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowManual((v) => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            {showManual ? "Ocultar configuração manual" : "Prefiro colar as credenciais manualmente"}
+          </button>
+
+          {showManual && (
+          <div className="space-y-4 border-t pt-4">
           <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 text-blue-800 text-xs">
             <Info className="h-4 w-4 shrink-0 mt-0.5" />
             <div className="space-y-1">
@@ -443,6 +474,8 @@ export function MetaCloudProviderCard({
             {isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
             {isPending ? "Salvando..." : "Salvar configuração"}
           </Button>
+          </div>
+          )}
         </div>
       )}
 

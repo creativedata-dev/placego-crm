@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ChevronDown, Zap } from "lucide-react";
+import { Plus, ChevronDown, Zap, Inbox, Send } from "lucide-react";
 import Link from "next/link";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChannelCard } from "./channel-card";
 import { WhatsAppConnector } from "./connectors/whatsapp-connector";
 import { MetaDmConnector } from "./connectors/meta-dm-connector";
@@ -10,6 +11,7 @@ import { EmailConnector } from "./connectors/email-connector";
 import { CommentConnector } from "./connectors/comment-connector";
 import { EvolutionProviderCard } from "./connectors/evolution-provider-card";
 import { MetaCloudProviderCard } from "./connectors/meta-cloud-provider-card";
+import { BrokerChannelCard } from "./connectors/broker-channel-card";
 import type { CompanyChannel } from "@/db/schema";
 
 const CONNECTOR_CATALOG = [
@@ -70,6 +72,12 @@ interface Props {
   metaWabaId: string;
   metaVerifyToken: string;
   metaAutoWelcome: boolean;
+  metaCoexistence: boolean;
+  brokerWhatsappProvider: "same_as_contact" | "evolution" | "meta_cloud";
+  brokerMetaPhoneNumberId: string;
+  brokerMetaAccessToken: string;
+  brokerMetaWabaId: string;
+  brokerEvolutionInstance: string;
   channels: CompanyChannel[];
   appUrl: string;
 }
@@ -85,10 +93,17 @@ export function ChannelsManager({
   metaWabaId,
   metaVerifyToken,
   metaAutoWelcome,
+  metaCoexistence,
+  brokerWhatsappProvider,
+  brokerMetaPhoneNumberId,
+  brokerMetaAccessToken,
+  brokerMetaWabaId,
+  brokerEvolutionInstance,
   channels,
   appUrl,
 }: Props) {
   const instanceName = `placego-${tenantSlug}`;
+  const defaultBrokerInstanceName = `placego-${tenantSlug}-corretores`;
   const getChannel = (type: string) => channels.find((c) => c.channelType === type) ?? null;
 
   function isConnectorActive(key: ConnectorKey): boolean {
@@ -142,196 +157,232 @@ export function ChannelsManager({
         </Link>
       </div>
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Conectores</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Canais de atendimento desta empresa. Cada canal ativo recebe contatos automaticamente.
-          </p>
-        </div>
+      <Tabs defaultValue="recebimento">
+        <TabsList>
+          <TabsTrigger value="recebimento">
+            <Inbox className="h-3.5 w-3.5" /> Recebimento
+          </TabsTrigger>
+          <TabsTrigger value="envio">
+            <Send className="h-3.5 w-3.5" /> Envio ao corretor
+          </TabsTrigger>
+        </TabsList>
 
-        {toAdd.length > 0 && (
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setDropdownOpen((v) => !v)}
-              className="flex items-center gap-1.5 text-sm font-medium border rounded-lg px-3 py-2 hover:bg-muted transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Adicionar
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
-            </button>
+        {/* ── Recebimento: canais que captam contatos/leads para o SDR ───────────── */}
+        <TabsContent value="recebimento" className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">Conectores</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Canais de atendimento desta empresa. Cada canal ativo recebe contatos automaticamente.
+              </p>
+            </div>
 
-            {dropdownOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-20 w-72 bg-popover border rounded-xl shadow-lg overflow-hidden">
-                  {toAdd.map((c) => (
-                    <button
-                      key={c.key}
-                      type="button"
-                      onClick={() => addConnector(c.key)}
-                      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted text-left transition-colors"
-                    >
-                      <span className="text-xl mt-0.5">{c.icon}</span>
-                      <div>
-                        <p className="text-sm font-medium">{c.title}</p>
-                        <p className="text-xs text-muted-foreground">{c.description}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
+            {toAdd.length > 0 && (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-sm font-medium border rounded-lg px-3 py-2 hover:bg-muted transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {dropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-20 w-72 bg-popover border rounded-xl shadow-lg overflow-hidden">
+                      {toAdd.map((c) => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          onClick={() => addConnector(c.key)}
+                          className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted text-left transition-colors"
+                        >
+                          <span className="text-xl mt-0.5">{c.icon}</span>
+                          <div>
+                            <p className="text-sm font-medium">{c.title}</p>
+                            <p className="text-xs text-muted-foreground">{c.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      <div className="space-y-4">
-        {/* WhatsApp — Evolution API */}
-        {visible.has("whatsapp_evolution") && (
-          <ChannelCard
-            icon="💬"
-            title="WhatsApp — Evolution API"
-            description="Conecte via QR Code com número pessoal ou chip dedicado"
-            channel={evolutionChannel}
-            companyId={tenantId}
-            channelType="whatsapp"
-            readOnly
-          >
-            <div className="space-y-6">
-              <EvolutionProviderCard tenantId={tenantId} currentProvider={whatsappProvider} />
-              <div className="border-t pt-4">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  Conexão WhatsApp
-                </p>
-                <WhatsAppConnector
-                  companyId={tenantId}
-                  instanceName={instanceName}
-                  channel={getChannel("whatsapp")}
+          <div className="space-y-4">
+            {/* WhatsApp — Evolution API */}
+            {visible.has("whatsapp_evolution") && (
+              <ChannelCard
+                icon="💬"
+                title="WhatsApp — Evolution API"
+                description="Conecte via QR Code com número pessoal ou chip dedicado"
+                channel={evolutionChannel}
+                companyId={tenantId}
+                channelType="whatsapp"
+                readOnly
+              >
+                <div className="space-y-6">
+                  <EvolutionProviderCard tenantId={tenantId} currentProvider={whatsappProvider} />
+                  <div className="border-t pt-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                      Conexão WhatsApp
+                    </p>
+                    <WhatsAppConnector
+                      companyId={tenantId}
+                      instanceName={instanceName}
+                      channel={getChannel("whatsapp")}
+                    />
+                  </div>
+                </div>
+              </ChannelCard>
+            )}
+
+            {/* WhatsApp — Meta Cloud API */}
+            {visible.has("whatsapp_meta_cloud") && (
+              <ChannelCard
+                icon="✅"
+                title="WhatsApp — Meta Cloud API"
+                description="API oficial do Meta com número verificado no Business Manager"
+                channel={metaCloudChannel}
+                companyId={tenantId}
+                channelType="whatsapp"
+                readOnly
+              >
+                <MetaCloudProviderCard
+                  tenantId={tenantId}
+                  currentProvider={whatsappProvider}
+                  metaPhoneNumberId={metaPhoneNumberId}
+                  metaAccessToken={metaAccessToken}
+                  metaWabaId={metaWabaId}
+                  metaVerifyToken={metaVerifyToken}
+                  metaAutoWelcome={metaAutoWelcome}
+                  metaCoexistence={metaCoexistence}
                 />
-              </div>
-            </div>
-          </ChannelCard>
-        )}
+              </ChannelCard>
+            )}
 
-        {/* WhatsApp — Meta Cloud API */}
-        {visible.has("whatsapp_meta_cloud") && (
-          <ChannelCard
-            icon="✅"
-            title="WhatsApp — Meta Cloud API"
-            description="API oficial do Meta com número verificado no Business Manager"
-            channel={metaCloudChannel}
-            companyId={tenantId}
-            channelType="whatsapp"
-            readOnly
-          >
-            <MetaCloudProviderCard
-              tenantId={tenantId}
-              currentProvider={whatsappProvider}
-              metaPhoneNumberId={metaPhoneNumberId}
-              metaAccessToken={metaAccessToken}
-              metaWabaId={metaWabaId}
-              metaVerifyToken={metaVerifyToken}
-              metaAutoWelcome={metaAutoWelcome}
-            />
-          </ChannelCard>
-        )}
+            {/* Instagram DM */}
+            {visible.has("instagram_dm") && (
+              <ChannelCard
+                icon="📸"
+                title="Instagram Direct"
+                description="Receba mensagens diretas do Instagram e converta em contatos"
+                channel={getChannel("instagram_dm")}
+                companyId={tenantId}
+                channelType="instagram_dm"
+              >
+                <MetaDmConnector
+                  companyId={tenantId}
+                  channelType="instagram_dm"
+                  channel={getChannel("instagram_dm")}
+                  label="Instagram"
+                  placeholder="Ex: @manaira.empreendimentos"
+                />
+              </ChannelCard>
+            )}
 
-        {/* Instagram DM */}
-        {visible.has("instagram_dm") && (
-          <ChannelCard
-            icon="📸"
-            title="Instagram Direct"
-            description="Receba mensagens diretas do Instagram e converta em contatos"
-            channel={getChannel("instagram_dm")}
-            companyId={tenantId}
-            channelType="instagram_dm"
-          >
-            <MetaDmConnector
-              companyId={tenantId}
-              channelType="instagram_dm"
-              channel={getChannel("instagram_dm")}
-              label="Instagram"
-              placeholder="Ex: @manaira.empreendimentos"
-            />
-          </ChannelCard>
-        )}
+            {/* Facebook Messenger */}
+            {visible.has("facebook_dm") && (
+              <ChannelCard
+                icon="📘"
+                title="Facebook Messenger"
+                description="Receba mensagens do Messenger da página do Facebook"
+                channel={getChannel("facebook_dm")}
+                companyId={tenantId}
+                channelType="facebook_dm"
+              >
+                <MetaDmConnector
+                  companyId={tenantId}
+                  channelType="facebook_dm"
+                  channel={getChannel("facebook_dm")}
+                  label="Facebook"
+                  placeholder="Ex: Manaira Empreendimentos"
+                />
+              </ChannelCard>
+            )}
 
-        {/* Facebook Messenger */}
-        {visible.has("facebook_dm") && (
-          <ChannelCard
-            icon="📘"
-            title="Facebook Messenger"
-            description="Receba mensagens do Messenger da página do Facebook"
-            channel={getChannel("facebook_dm")}
-            companyId={tenantId}
-            channelType="facebook_dm"
-          >
-            <MetaDmConnector
-              companyId={tenantId}
-              channelType="facebook_dm"
-              channel={getChannel("facebook_dm")}
-              label="Facebook"
-              placeholder="Ex: Manaira Empreendimentos"
-            />
-          </ChannelCard>
-        )}
+            {/* Comentários */}
+            {visible.has("meta_comment") && (
+              <ChannelCard
+                icon="🗨️"
+                title="Comentários (Meta)"
+                description="Capture leads de comentários em posts e anúncios do Facebook e Instagram"
+                channel={getChannel("meta_comment")}
+                companyId={tenantId}
+                channelType="meta_comment"
+              >
+                <CommentConnector
+                  companyId={tenantId}
+                  channel={getChannel("meta_comment")}
+                />
+              </ChannelCard>
+            )}
 
-        {/* Comentários */}
-        {visible.has("meta_comment") && (
-          <ChannelCard
-            icon="🗨️"
-            title="Comentários (Meta)"
-            description="Capture leads de comentários em posts e anúncios do Facebook e Instagram"
-            channel={getChannel("meta_comment")}
-            companyId={tenantId}
-            channelType="meta_comment"
-          >
-            <CommentConnector
-              companyId={tenantId}
-              channel={getChannel("meta_comment")}
-            />
-          </ChannelCard>
-        )}
+            {/* Email */}
+            {visible.has("email") && (
+              <ChannelCard
+                icon="✉️"
+                title="Email"
+                description="Receba emails e converta automaticamente em contatos"
+                channel={getChannel("email")}
+                companyId={tenantId}
+                channelType="email"
+              >
+                <EmailConnector
+                  companyId={tenantId}
+                  channel={getChannel("email")}
+                />
+              </ChannelCard>
+            )}
 
-        {/* Email */}
-        {visible.has("email") && (
-          <ChannelCard
-            icon="✉️"
-            title="Email"
-            description="Receba emails e converta automaticamente em contatos"
-            channel={getChannel("email")}
-            companyId={tenantId}
-            channelType="email"
-          >
-            <EmailConnector
-              companyId={tenantId}
-              channel={getChannel("email")}
-            />
-          </ChannelCard>
-        )}
+            {/* Lead Ads */}
+            {visible.has("meta_leadgen") && (
+              <ChannelCard
+                icon="📋"
+                title="Meta Lead Ads"
+                description="Formulários de captação nas campanhas do Facebook e Instagram"
+                channel={getChannel("meta_leadgen")}
+                companyId={tenantId}
+                channelType="meta_leadgen"
+                webhookUrl={`${appUrl}/api/leads/capture?token=${webhookToken}`}
+                webhookToken={webhookToken}
+                tenantId={tenantId}
+                tenantName={tenantName}
+              >
+                <div className="text-sm text-muted-foreground">
+                  Configure o webhook no App Meta PlaceGo CRM (ID: 1689147582125041) apontando para a URL acima.
+                </div>
+              </ChannelCard>
+            )}
+          </div>
+        </TabsContent>
 
-        {/* Lead Ads */}
-        {visible.has("meta_leadgen") && (
-          <ChannelCard
-            icon="📋"
-            title="Meta Lead Ads"
-            description="Formulários de captação nas campanhas do Facebook e Instagram"
-            channel={getChannel("meta_leadgen")}
-            companyId={tenantId}
-            channelType="meta_leadgen"
-            webhookUrl={`${appUrl}/api/leads/capture?token=${webhookToken}`}
-            webhookToken={webhookToken}
+        {/* ── Envio: canal usado para notificar/conversar com o corretor ─────────── */}
+        <TabsContent value="envio">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">Envio ao corretor / imobiliária</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Canal usado pelo SDR para notificar o corretor quando um lead é distribuído. Manter separado
+              do canal de recebimento reduz o risco de bloqueio do número usado para falar com os contatos.
+            </p>
+          </div>
+          <BrokerChannelCard
             tenantId={tenantId}
-            tenantName={tenantName}
-          >
-            <div className="text-sm text-muted-foreground">
-              Configure o webhook no App Meta PlaceGo CRM (ID: 1689147582125041) apontando para a URL acima.
-            </div>
-          </ChannelCard>
-        )}
-      </div>
+            provider={brokerWhatsappProvider}
+            metaPhoneNumberId={brokerMetaPhoneNumberId}
+            metaAccessToken={brokerMetaAccessToken}
+            metaWabaId={brokerMetaWabaId}
+            evolutionInstance={brokerEvolutionInstance}
+            defaultEvolutionInstance={defaultBrokerInstanceName}
+            brokerChannel={getChannel("whatsapp_broker")}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

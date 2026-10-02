@@ -5,6 +5,8 @@ import { jsonb } from "drizzle-orm/pg-core";
 export const channelTypeEnum = pgEnum("channel_type", [
   "whatsapp", "instagram_dm", "facebook_dm",
   "meta_comment", "email", "meta_leadgen", "lp", "portal",
+  // Instância Evolution dedicada ao canal de ENVIO para o corretor (separada do "whatsapp" de recebimento)
+  "whatsapp_broker",
 ]);
 
 export const companyChannels = pgTable("company_channels", {
