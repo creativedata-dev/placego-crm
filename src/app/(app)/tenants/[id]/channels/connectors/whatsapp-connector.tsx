@@ -22,6 +22,7 @@ export function WhatsAppConnector({ companyId, instanceName, channel, channelTyp
   const [welcome, setWelcome] = useState((channel?.welcomeMessage as string) ?? "");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     checkStatus();
@@ -49,16 +50,28 @@ export function WhatsAppConnector({ companyId, instanceName, channel, channelTyp
 
   async function handleConnect() {
     setLoading(true);
-    await createEvolutionInstance(instanceName);
-    await registerEvolutionWebhook(instanceName);
-    await saveChannelConfig(companyId, channelType, { instanceName });
-    setStatus("connecting");
-    setTimeout(checkStatus, 2000);
+    setError(null);
+    try {
+      await createEvolutionInstance(instanceName);
+      await registerEvolutionWebhook(instanceName);
+      await saveChannelConfig(companyId, channelType, { instanceName });
+      setStatus("connecting");
+      setTimeout(checkStatus, 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao conectar instância Evolution.");
+      setStatus("disconnected");
+      setLoading(false);
+    }
   }
 
   async function handleDisconnect() {
     if (!confirm("Desconectar WhatsApp?")) return;
-    await deleteEvolutionInstance(instanceName);
+    setError(null);
+    try {
+      await deleteEvolutionInstance(instanceName);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao desconectar instância Evolution.");
+    }
     setStatus("disconnected");
     setQrCode(null);
   }
@@ -80,6 +93,12 @@ export function WhatsAppConnector({ companyId, instanceName, channel, channelTyp
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="text-sm p-3 rounded-lg bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400">
+          {error}
+        </div>
+      )}
+
       {/* Status */}
       <div className="flex items-center gap-3">
         <code className="text-xs bg-muted px-2 py-1 rounded">{instanceName}</code>
